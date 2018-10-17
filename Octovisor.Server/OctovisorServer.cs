@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Octovisor.Server.Models;
+using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -11,20 +12,24 @@ namespace Octovisor.Server
         private readonly ManualResetEvent ResetEvent;
         private readonly OctovisorLogger Logger;
         private Socket Listener;
+        private readonly string ServerAddress;
+        private readonly int ServerPort;
 
-        internal OctovisorServer()
+        internal OctovisorServer(string srvadr,int srvport)
         {
-            this.ResetEvent = new ManualResetEvent(false);
-            this.Logger     = new OctovisorLogger();
+            this.ResetEvent    = new ManualResetEvent(false);
+            this.Logger        = new OctovisorLogger();
+            this.ServerAddress = srvadr;
+            this.ServerPort    = srvport;
         }
 
         internal void Run()
         {
             try
             {
-                IPHostEntry hostinfo = Dns.GetHostEntry(Dns.GetHostName());
+                IPHostEntry hostinfo = Dns.GetHostEntry(this.ServerAddress);
                 IPAddress ipadr = hostinfo.AddressList[0];
-                IPEndPoint endpoint = new IPEndPoint(ipadr, 11000);
+                IPEndPoint endpoint = new IPEndPoint(ipadr, this.ServerPort);
 
                 this.Listener = new Socket(ipadr.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
                 this.Listener.Bind(endpoint);
@@ -76,7 +81,7 @@ namespace Octovisor.Server
                 state.Builder.Append(Encoding.ASCII.GetString(state.Buffer, 0, bytesread));
                 content = state.Builder.ToString();
 
-                OctovisorMessage msg = OctovisorMessage.Deserialize(content);
+                ProcessMessage msg = ProcessMessage.Deserialize(content);
 
                 this.Logger.Log(ConsoleColor.Green,"Message", $"{msg.OriginName} -> {msg.TargetName} | Forwarding {content.Length} bytes");
                 this.Send(handler, content);
@@ -96,6 +101,7 @@ namespace Octovisor.Server
             {
                 Socket handler = (Socket)ar.AsyncState;
                 handler.EndSend(ar);
+
                 handler.Shutdown(SocketShutdown.Both);
                 handler.Close();
             }
