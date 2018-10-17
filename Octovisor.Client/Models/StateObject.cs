@@ -1,7 +1,7 @@
 ﻿using System.Net.Sockets;
 using System.Text;
 
-namespace Octovisor.Server
+namespace Octovisor.Client.Models
 {
     internal class StateObject
     {
