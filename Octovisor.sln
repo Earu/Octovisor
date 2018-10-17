@@ -7,7 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Octovisor.Server", "Octovis
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Octovisor.Client", "Octovisor.Client\Octovisor.Client.csproj", "{1B6F2BDA-033B-49EE-8CDC-63B613D09D51}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{BC842B31-F7ED-45FA-B632-7793287F1F9B}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Octovisor.Tests", "Octovisor.Tests", "{BC842B31-F7ED-45FA-B632-7793287F1F9B}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClientProcessA", "ClientProcessA\ClientProcessA.csproj", "{A968038A-5E05-4328-B1C0-6DB06E79DAED}"
 EndProject

@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+﻿using Octovisor.Client.Models;
 using System;
 using System.Net;
 using System.Net.Sockets;
@@ -9,62 +9,52 @@ namespace Octovisor.Client
 {
     public class OctovisorClient
     {
-        private const int Port = 11000;
-
         private readonly ManualResetEvent OnConnectDone;
         private readonly ManualResetEvent OnSendDone;
         private readonly ManualResetEvent OnReceiveDone;
 
         private Socket Client;
+        private string Response;
 
-        private string Response = string.Empty;
+        internal readonly OctovisorConfig Config;
 
-        public OctovisorClient()
+        public bool IsConnected { get; private set; }
+
+        public OctovisorClient(OctovisorConfig config)
         {
+            if (!config.IsValid)
+                throw new Exception("Invalid Octovisor config");
+
+            this.Response      = string.Empty;
+            this.Config        = config;
             this.OnConnectDone = new ManualResetEvent(false);
             this.OnSendDone    = new ManualResetEvent(false);
             this.OnReceiveDone = new ManualResetEvent(false);
+
+            this.Connect();
         }
 
-        public void Run()
-        { 
+        /// <summary>
+        /// This is called into the constructor so do not use it again unless you get disconnected
+        /// </summary>
+        public void Connect()
+        {
             try
             {
-                IPHostEntry hostinfo = Dns.GetHostEntry(Dns.GetHostName());
-                IPAddress ipadr      = hostinfo.AddressList[0];
-                IPEndPoint endpoint  = new IPEndPoint(ipadr, Port);
+                IPHostEntry hostinfo = Dns.GetHostEntry(this.Config.ServerAddress);
+                IPAddress ipadr = hostinfo.AddressList[0];
+                IPEndPoint endpoint = new IPEndPoint(ipadr, this.Config.ServerPort);
 
                 this.Client = new Socket(ipadr.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
 
-                this.Client.BeginConnect(endpoint, new AsyncCallback(ConnectCallback), this.Client);
-                OnConnectDone.WaitOne();
+                this.Client.BeginConnect(endpoint, new AsyncCallback(this.ConnectCallback), this.Client);
+                this.OnConnectDone.WaitOne();
 
-                // Debug
-                OctovisorMessage msg = new OctovisorMessage
-                {
-                    Data = "fuck you",
-                    OriginName = "Test",
-                    TargetName = "HAHA",
-                    Port = Port,
-                    IPV6 = ipadr.ToString()
-                };
-
-                Send(this.Client, msg.Serialize());
-                OnSendDone.WaitOne();
-
-                Receive(this.Client);
-                OnReceiveDone.WaitOne();
-
-                Console.WriteLine("Response received : {0}", Response);
-                Console.Read();
-
-                this.Client.Shutdown(SocketShutdown.Both);
-                this.Client.Close();
-
+                this.IsConnected = true;
             }
-            catch (Exception e)
+            catch
             {
-                Console.WriteLine(e.ToString());
+                this.IsConnected = false;
             }
         }
 
@@ -75,30 +65,32 @@ namespace Octovisor.Client
                 Socket client = (Socket)ar.AsyncState;
                 client.EndConnect(ar);
 
-                Console.WriteLine("Socket connected to {0}", client.RemoteEndPoint.ToString());
-
-                OnConnectDone.Set();
+                this.OnConnectDone.Set();
             }
-            catch (Exception e)
+            catch
             {
-                Console.WriteLine(e.ToString());
+                
             }
         }
 
-        private void Receive(Socket client)
+        internal string Receive()
         {
             try
             {
                 StateObject state = new StateObject
                 {
-                    WorkSocket = client
+                    WorkSocket = this.Client
                 };
 
-                client.BeginReceive(state.Buffer, 0, StateObject.BufferSize, 0, new AsyncCallback(ReceiveCallback), state);
+                this.Client.BeginReceive(state.Buffer, 0, StateObject.BufferSize, 0, new AsyncCallback(this.ReceiveCallback), state);
+
+                this.OnReceiveDone.WaitOne();
+
+                return Response;
             }
-            catch (Exception e)
+            catch 
             {
-                Console.WriteLine(e.ToString());
+                return null;
             }
         }
 
@@ -109,33 +101,34 @@ namespace Octovisor.Client
                 StateObject state = (StateObject)ar.AsyncState;
                 Socket client = state.WorkSocket;
 
-                int bytesRead = client.EndReceive(ar);
+                int bytesread = client.EndReceive(ar);
 
-                if (bytesRead > 0)
+                if (bytesread > 0)
                 {
-                    state.Builder.Append(Encoding.ASCII.GetString(state.Buffer, 0, bytesRead));
+                    state.Builder.Append(Encoding.ASCII.GetString(state.Buffer, 0, bytesread));
 
-                    client.BeginReceive(state.Buffer, 0, StateObject.BufferSize, 0, new AsyncCallback(ReceiveCallback), state);
+                    client.BeginReceive(state.Buffer, 0, StateObject.BufferSize, 0, new AsyncCallback(this.ReceiveCallback), state);
                 }
                 else
                 {
                     if (state.Builder.Length > 1)
                         Response = state.Builder.ToString();
 
-                    OnReceiveDone.Set();
+                    this.OnReceiveDone.Set();
                 }
             }
-            catch (Exception e)
+            catch 
             {
-                Console.WriteLine(e.ToString());
             }
         }
 
-        private void Send(Socket client, string data)
+        internal void Send(string data)
         {
-            byte[] byteData = Encoding.ASCII.GetBytes(data);
+            byte[] bytedata = Encoding.ASCII.GetBytes(data);
 
-            client.BeginSend(byteData, 0, byteData.Length, 0, new AsyncCallback(SendCallback), client);
+            this.Client.BeginSend(bytedata, 0, bytedata.Length, 0, new AsyncCallback(this.SendCallback), this.Client);
+
+            this.OnSendDone.WaitOne();
         }
 
         private void SendCallback(IAsyncResult ar)
@@ -144,15 +137,18 @@ namespace Octovisor.Client
             {
                 Socket client = (Socket)ar.AsyncState;
 
-                int bytesSent = client.EndSend(ar);
-                Console.WriteLine("Sent {0} bytes to server.", bytesSent);
+                int bytesent = client.EndSend(ar);
+                client.Shutdown(SocketShutdown.Both);
+                client.Close();
 
-                OnSendDone.Set();
+                this.OnSendDone.Set();
             }
-            catch (Exception e)
+            catch 
             {
-                Console.WriteLine(e.ToString());
             }
         }
+
+        public RemoteProcess ListenToProcess(string process)
+            => new RemoteProcess(this, process);
     }
 }
