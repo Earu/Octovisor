@@ -2,14 +2,12 @@
 
 namespace Octovisor.Tests.ClientProcessB
 {
-    public class Program
+    class Program
     {
-        public static int Main(string[] args)
+        static void Main(string[] args)
         {
             OctovisorClient client = new OctovisorClient();
             client.Run();
-
-            return 0;
         }
     }
 }
