@@ -4,11 +4,14 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Octovisor.Client
 {
     public class OctovisorClient
     {
+        public event Action<Exception> OnError;
+
         private readonly ManualResetEvent OnConnectDone;
         private readonly ManualResetEvent OnSendDone;
         private readonly ManualResetEvent OnReceiveDone;
@@ -34,6 +37,8 @@ namespace Octovisor.Client
             this.Connect();
         }
 
+        private void CallErrorEvent(Exception e) => this.OnError?.Invoke(e);
+
         /// <summary>
         /// This is called into the constructor so do not use it again unless you get disconnected
         /// </summary>
@@ -54,9 +59,10 @@ namespace Octovisor.Client
 
                 this.IsConnected = true;
             }
-            catch
+            catch(Exception e)
             {
                 this.IsConnected = false;
+                this.CallErrorEvent(e);
             }
         }
 
@@ -94,9 +100,9 @@ namespace Octovisor.Client
 
                 this.OnConnectDone.Set();
             }
-            catch
+            catch(Exception e)
             {
-                
+                this.CallErrorEvent(e);
             }
         }
 
@@ -115,8 +121,9 @@ namespace Octovisor.Client
 
                 return Response;
             }
-            catch 
+            catch(Exception e) 
             {
+                this.CallErrorEvent(e);
                 return null;
             }
         }
@@ -144,8 +151,9 @@ namespace Octovisor.Client
                     this.OnReceiveDone.Set();
                 }
             }
-            catch 
+            catch (Exception e)
             {
+                this.CallErrorEvent(e);
             }
         }
 
@@ -168,8 +176,9 @@ namespace Octovisor.Client
 
                 this.OnSendDone.Set();
             }
-            catch 
+            catch(Exception e)
             {
+                this.CallErrorEvent(e);
             }
         }
 
