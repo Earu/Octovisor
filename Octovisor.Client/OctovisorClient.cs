@@ -50,12 +50,39 @@ namespace Octovisor.Client
                 this.Client.BeginConnect(endpoint, new AsyncCallback(this.ConnectCallback), this.Client);
                 this.OnConnectDone.WaitOne();
 
+                this.RegisterOnServer();
+
                 this.IsConnected = true;
             }
             catch
             {
                 this.IsConnected = false;
             }
+        }
+
+        internal void RegisterOnServer()
+        {
+            ProcessMessage msg = new ProcessMessage {
+                OriginName = this.Config.ProcessName,
+                TargetName = "SERVER",
+                MessageIdentifier = "INTERNAL_OCTOVISOR_PROCESS_INIT",
+                Data = null,
+            };
+
+            this.Send(msg.Serialize());
+        }
+
+        internal void EndOnServer()
+        {
+            ProcessMessage msg = new ProcessMessage
+            {
+                OriginName = this.Config.ProcessName,
+                TargetName = "SERVER",
+                MessageIdentifier = "INTERNAL_OCTOVISOR_PROCESS_END",
+                Data = null,
+            };
+
+            this.Send(msg.Serialize());
         }
 
         private void ConnectCallback(IAsyncResult ar)
@@ -137,9 +164,7 @@ namespace Octovisor.Client
             {
                 Socket client = (Socket)ar.AsyncState;
 
-                int bytesent = client.EndSend(ar);
-                client.Shutdown(SocketShutdown.Both);
-                client.Close();
+                client.EndSend(ar);
 
                 this.OnSendDone.Set();
             }
