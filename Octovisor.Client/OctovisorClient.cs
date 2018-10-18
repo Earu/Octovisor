@@ -132,7 +132,7 @@ namespace Octovisor.Client
 
                 if (bytesread > 0)
                 {
-                    state.Builder.Append(Encoding.ASCII.GetString(state.Buffer, 0, bytesread));
+                    state.Builder.Append(Encoding.UTF8.GetString(state.Buffer, 0, bytesread));
 
                     client.BeginReceive(state.Buffer, 0, StateObject.BufferSize, 0, new AsyncCallback(this.ReceiveCallback), state);
                 }
@@ -151,7 +151,7 @@ namespace Octovisor.Client
 
         internal void Send(string data)
         {
-            byte[] bytedata = Encoding.ASCII.GetBytes(data);
+            byte[] bytedata = Encoding.UTF8.GetBytes(data);
 
             this.Client.BeginSend(bytedata, 0, bytedata.Length, 0, new AsyncCallback(this.SendCallback), this.Client);
 

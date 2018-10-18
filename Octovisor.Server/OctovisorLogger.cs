@@ -12,9 +12,7 @@ namespace Octovisor.Server
             Console.ForegroundColor = ConsoleColor.Gray;
             int hour = DateTime.Now.TimeOfDay.Hours;
             int minute = DateTime.Now.TimeOfDay.Minutes;
-            string nicehour = hour < 10 ? "0" + hour : hour.ToString();
-            string nicemin = minute < 10 ? "0" + minute : minute.ToString();
-            Console.Write($"{nicehour}:{nicemin} - ");
+            Console.Write($"{hour:00}:{minute:00} - ");
         }
 
         private void SaveToFile(string head, string content)
@@ -37,7 +35,7 @@ namespace Octovisor.Server
 
         internal void Debug(string content) => this.Log(ConsoleColor.Cyan, "Debug", content);
 
-        internal void Warning(string content)
+        internal void Warn(string content)
         {
             this.Prefix();
             Console.ForegroundColor = ConsoleColor.Yellow;
