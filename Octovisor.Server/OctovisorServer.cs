@@ -88,7 +88,7 @@ namespace Octovisor.Server
             if (bytesread > 0)
             {
                 state.Builder.Clear();
-                state.Builder.Append(Encoding.ASCII.GetString(state.Buffer, 0, bytesread));
+                state.Builder.Append(Encoding.UTF8.GetString(state.Buffer, 0, bytesread));
                 content = state.Builder.ToString();
 
                 ProcessMessage msg = ProcessMessage.Deserialize(content);
@@ -96,11 +96,9 @@ namespace Octovisor.Server
                 {
                     case "INTERNAL_OCTOVISOR_PROCESS_INIT":
                         this.RegisterRemoteProcess(msg.OriginName, state);
-                        this.Logger.Log(ConsoleColor.Yellow, "Process", $"Registering new remote process | {msg.OriginName} @ {handler.RemoteEndPoint}");
                         break;
                     case "INTERNAL_OCTOVISOR_PROCESS_END":
                         this.EndRemoteProcess(msg.OriginName);
-                        this.Logger.Log(ConsoleColor.Yellow, "Process", $"Ending remote process | {msg.OriginName} @ {handler.RemoteEndPoint}");
                         break;
                     default:
                         this.DispatchMessage(msg);
@@ -114,7 +112,7 @@ namespace Octovisor.Server
 
         private void Send(Socket handler, string data)
         {
-            byte[] bytedata = Encoding.ASCII.GetBytes(data);
+            byte[] bytedata = Encoding.UTF8.GetBytes(data);
 
             handler.BeginSend(bytedata, 0, bytedata.Length, 0, new AsyncCallback(this.SendCallback), handler);
         }
@@ -133,10 +131,27 @@ namespace Octovisor.Server
         }
 
         private void RegisterRemoteProcess(string name,StateObject state)
-            => this.States.Add(name, state);
+        {
+            if (this.States.ContainsKey(name))
+                this.Logger.Warn($"Cannot register remote process with an existing name ({name}). Discarding.");
+            else
+            {
+                this.States.Add(name, state);
+                this.Logger.Log(ConsoleColor.Yellow, "Process", $"Registering new remote process | {name} @ {state.WorkSocket.RemoteEndPoint}");
+            }
+        }
 
         private void EndRemoteProcess(string name)
-            => this.States.Remove(name);
+        {
+            if (!this.States.ContainsKey(name))
+                this.Logger.Warn($"Attempt to end a non-existing remote process ({name}). Discarding.");
+            else
+            {
+                StateObject state = this.States[name];
+                this.States.Remove(name);
+                this.Logger.Log(ConsoleColor.Yellow, "Process", $"Ending remote process | {name} @ {state.WorkSocket.RemoteEndPoint}");
+            }
+        }
 
         private void DispatchMessage(ProcessMessage msg)
         {
@@ -149,7 +164,7 @@ namespace Octovisor.Server
             }
             else
             {
-                this.Logger.Warning($"No such remote process ({msg.TargetName}). Sending message back.");
+                this.Logger.Warn($"No such remote process ({msg.TargetName}). Sending message back.");
                 StateObject state = this.States[msg.OriginName];
                 this.Send(state.WorkSocket, msg.Serialize());
             }
