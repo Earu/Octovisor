@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using System;
 
 namespace Octovisor.Server.Models
 {
@@ -28,17 +29,20 @@ namespace Octovisor.Server.Models
 
                 return msg;
             }
-            catch
+            catch(Exception e)
             {
                 return new ProcessMessage
                 {
                     OriginName        = "UNKNOWN_ORIGIN",
                     TargetName        = "UNKNOWN_TARGET",
                     MessageIdentifier = "UNKNOWN",
-                    Data              = string.Empty,
+                    Data              = e.ToString(),
                     IsValid           = false,
                 };
             }
         }
+
+        internal string Serialize()
+            => JsonConvert.SerializeObject(this);
     }
 }
