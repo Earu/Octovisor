@@ -1,5 +1,6 @@
 ﻿using Octovisor.Server.Models;
 using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -9,18 +10,23 @@ namespace Octovisor.Server
 {
     internal class OctovisorServer
     {
+        private Socket Listener;
+
         private readonly ManualResetEvent ResetEvent;
         private readonly OctovisorLogger Logger;
-        private Socket Listener;
         private readonly string ServerAddress;
         private readonly int ServerPort;
+        private readonly List<Thread> ConnectionThreads;
+        private readonly Dictionary<string, StateObject> States;
 
         internal OctovisorServer(string srvadr,int srvport)
         {
-            this.ResetEvent    = new ManualResetEvent(false);
-            this.Logger        = new OctovisorLogger();
-            this.ServerAddress = srvadr;
-            this.ServerPort    = srvport;
+            this.ResetEvent        = new ManualResetEvent(false);
+            this.Logger            = new OctovisorLogger();
+            this.ServerAddress     = srvadr;
+            this.ServerPort        = srvport;
+            this.ConnectionThreads = new List<Thread>();
+            this.States            = new Dictionary<string, StateObject>();
         }
 
         internal void Run()
@@ -35,13 +41,12 @@ namespace Octovisor.Server
                 this.Listener.Bind(endpoint);
                 this.Listener.Listen(100);
 
+                this.Logger.Log(ConsoleColor.Magenta, "Server", "Waiting for a connection...");
+
                 while (true)
                 {
                     this.ResetEvent.Reset();
-
-                    this.Logger.Log(ConsoleColor.Magenta, "Server", "Waiting for a connection...");
                     this.Listener.BeginAccept(new AsyncCallback(this.AcceptCallback), this.Listener);
-
                     this.ResetEvent.WaitOne();
                 }
             }
@@ -60,11 +65,15 @@ namespace Octovisor.Server
             Socket listener = (Socket)ar.AsyncState;
             Socket handler = listener.EndAccept(ar);
 
-            StateObject state = new StateObject
-            {
-                WorkSocket = handler
-            };
-            handler.BeginReceive(state.Buffer, 0, StateObject.BufferSize, 0, new AsyncCallback(this.ReadCallback), state);
+            StateObject state = new StateObject(handler);
+
+            // This part is very important it brings the processing into a new thread so 
+            // it doesnt block other connections 
+            Thread thread = new Thread(() => state.WorkSocket.BeginReceive(state.Buffer, 0, 
+                StateObject.BufferSize, SocketFlags.None, new AsyncCallback(this.ReadCallback), state));
+            thread.Start();
+
+            this.ConnectionThreads.Add(thread);
         }
 
         private void ReadCallback(IAsyncResult ar)
@@ -78,13 +87,28 @@ namespace Octovisor.Server
 
             if (bytesread > 0)
             {
+                state.Builder.Clear();
                 state.Builder.Append(Encoding.ASCII.GetString(state.Buffer, 0, bytesread));
                 content = state.Builder.ToString();
 
                 ProcessMessage msg = ProcessMessage.Deserialize(content);
+                switch (msg.MessageIdentifier)
+                {
+                    case "INTERNAL_OCTOVISOR_PROCESS_INIT":
+                        this.RegisterRemoteProcess(msg.OriginName, state);
+                        this.Logger.Log(ConsoleColor.Yellow, "Process", $"Registering new remote process | {msg.OriginName} @ {handler.RemoteEndPoint}");
+                        break;
+                    case "INTERNAL_OCTOVISOR_PROCESS_END":
+                        this.EndRemoteProcess(msg.OriginName);
+                        this.Logger.Log(ConsoleColor.Yellow, "Process", $"Ending remote process | {msg.OriginName} @ {handler.RemoteEndPoint}");
+                        break;
+                    default:
+                        this.DispatchMessage(msg);
+                        break;
+                }
 
-                this.Logger.Log(ConsoleColor.Green,"Message", $"{msg.OriginName} -> {msg.TargetName} | Forwarding {content.Length} bytes");
-                this.Send(handler, content);
+                // Wait again for incoming data
+                state.WorkSocket.BeginReceive(state.Buffer, 0, StateObject.BufferSize, SocketFlags.None, new AsyncCallback(this.ReadCallback), state);
             }
         }
 
@@ -101,13 +125,33 @@ namespace Octovisor.Server
             {
                 Socket handler = (Socket)ar.AsyncState;
                 handler.EndSend(ar);
-
-                handler.Shutdown(SocketShutdown.Both);
-                handler.Close();
             }
             catch (Exception e)
             {
-                this.Logger.Error($"Something went wrong when closing a connection\n{e}");
+                this.Logger.Error($"Something went wrong when sending data\n{e}");
+            }
+        }
+
+        private void RegisterRemoteProcess(string name,StateObject state)
+            => this.States.Add(name, state);
+
+        private void EndRemoteProcess(string name)
+            => this.States.Remove(name);
+
+        private void DispatchMessage(ProcessMessage msg)
+        {
+            if (this.States.ContainsKey(msg.TargetName))
+            {
+                StateObject state = this.States[msg.TargetName];
+                this.Send(state.WorkSocket, msg.Serialize());
+                this.Logger.Log(ConsoleColor.Green, "Message", $"Forwarded {msg.Data.Length} bytes " +
+                    $"| (ID: {msg.MessageIdentifier}) {msg.OriginName} -> {msg.TargetName}");
+            }
+            else
+            {
+                this.Logger.Warning($"No such remote process ({msg.TargetName}). Sending message back.");
+                StateObject state = this.States[msg.OriginName];
+                this.Send(state.WorkSocket, msg.Serialize());
             }
         }
     }

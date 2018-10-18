@@ -1,5 +1,6 @@
 ﻿using Octovisor.Client;
 using Octovisor.Client.Models;
+using System;
 using System.Net;
 
 namespace Octovisor.Tests.ClientProcessA
@@ -20,6 +21,8 @@ namespace Octovisor.Tests.ClientProcessA
             MessageListener<int> listener = process.ListenToMessage<int>("TEST");
 
             listener.Write(1);
+
+            Console.Read();
         }
     }
 }

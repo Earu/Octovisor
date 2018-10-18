@@ -7,13 +7,13 @@ namespace Octovisor.Server.Models
     {
         internal const int BufferSize = 256;
 
-        internal Socket WorkSocket { get; set; }
+        internal Socket WorkSocket { get; }
         internal byte[] Buffer { get; }
         internal StringBuilder Builder { get; }
 
-        internal StateObject()
+        internal StateObject(Socket socket)
         {
-            this.WorkSocket = null;
+            this.WorkSocket = socket;
             this.Buffer = new byte[BufferSize];
             this.Builder = new StringBuilder();
         }

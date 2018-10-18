@@ -41,18 +41,18 @@ namespace Octovisor.Server
         {
             this.Prefix();
             Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.Write($"[ERROR] >> {content}");
+            Console.WriteLine($"[WARN] >> {content}");
 
-            this.SaveToFile("ERROR", content);
+            this.SaveToFile("WARN", content);
         }
 
         internal void Error(string content)
         {
             this.Prefix();
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.Write($"[WARN] >> {content}");
+            Console.WriteLine($"[ERROR] >> {content}");
 
-            this.SaveToFile("WARN", content);
+            this.SaveToFile("ERROR", content);
         }
 
         internal void Pause() => Console.Read();
