@@ -3,6 +3,15 @@ using System;
 
 namespace Octovisor.Server.Models
 {
+    internal enum ProcessMessageStatus
+    {
+        OK                    = 0,
+        ServerError           = 1,
+        TargetError           = 2,
+        NetworkError          = 3,
+        MalformedMessageError = 4,
+    }
+
     internal class ProcessMessage
     {
         [JsonProperty(PropertyName="origin")]
@@ -10,24 +19,21 @@ namespace Octovisor.Server.Models
 
         [JsonProperty(PropertyName="target")]
         internal string TargetName { get; set; }
-
+            
         [JsonProperty(PropertyName="msg_identifier")]
         internal string MessageIdentifier { get; set; }
 
         [JsonProperty(PropertyName="data")]
         internal string Data { get; set; }
 
-        [JsonIgnore]
-        internal bool IsValid { get; private set; } = true;
+        [JsonProperty(PropertyName="status")]
+        internal ProcessMessageStatus Status { get; set; }
 
         internal static ProcessMessage Deserialize(string json)
         {
             try
             {
-                var msg = JsonConvert.DeserializeObject<ProcessMessage>(json);
-                msg.IsValid = true;
-
-                return msg;
+                return JsonConvert.DeserializeObject<ProcessMessage>(json);
             }
             catch(Exception e)
             {
@@ -37,7 +43,7 @@ namespace Octovisor.Server.Models
                     TargetName        = "UNKNOWN_TARGET",
                     MessageIdentifier = "UNKNOWN",
                     Data              = e.ToString(),
-                    IsValid           = false,
+                    Status            = ProcessMessageStatus.MalformedMessageError,
                 };
             }
         }
