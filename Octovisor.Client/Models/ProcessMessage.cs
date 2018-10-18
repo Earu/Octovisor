@@ -3,40 +3,47 @@ using System;
 
 namespace Octovisor.Client.Models
 {
+    internal enum ProcessMessageStatus
+    {
+        OK = 0,
+        ServerError = 1,
+        TargetError = 2,
+        NetworkError = 3,
+        MalformedMessageError = 4,
+    }
+
     internal class ProcessMessage
     {
-        [JsonProperty(PropertyName="origin")]
+        [JsonProperty(PropertyName = "origin")]
         internal string OriginName { get; set; }
 
-        [JsonProperty(PropertyName="target")]
+        [JsonProperty(PropertyName = "target")]
         internal string TargetName { get; set; }
 
-        [JsonProperty(PropertyName="msg_identifier")]
+        [JsonProperty(PropertyName = "msg_identifier")]
         internal string MessageIdentifier { get; set; }
 
-        [JsonProperty(PropertyName="data")]
+        [JsonProperty(PropertyName = "data")]
         internal string Data { get; set; }
 
-        [JsonIgnore]
-        internal bool IsValid { get; private set; } = true;
+        [JsonProperty(PropertyName = "status")]
+        internal ProcessMessageStatus Status { get; set; }
 
         internal static ProcessMessage Deserialize(string json)
         {
             try
             {
-                var msg = JsonConvert.DeserializeObject<ProcessMessage>(json);
-                msg.IsValid = true;
-
-                return msg;
+                return JsonConvert.DeserializeObject<ProcessMessage>(json);
             }
-            catch(Exception e)
+            catch (Exception e)
             {
-                return new ProcessMessage {
-                    OriginName        = "UNKNOWN_ORIGIN",
-                    TargetName        = "UNKNOWN_TARGET",
+                return new ProcessMessage
+                {
+                    OriginName = "UNKNOWN_ORIGIN",
+                    TargetName = "UNKNOWN_TARGET",
                     MessageIdentifier = "UNKNOWN",
-                    Data              = e.ToString(),
-                    IsValid           = false,
+                    Data = e.ToString(),
+                    Status = ProcessMessageStatus.MalformedMessageError,
                 };
             }
         }

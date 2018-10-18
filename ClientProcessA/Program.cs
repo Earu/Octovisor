@@ -9,6 +9,8 @@ namespace Octovisor.Tests.ClientProcessA
     {
         static void Main(string[] args)
         {
+            Console.Title = "ProcessA";
+
             OctovisorConfig config = new OctovisorConfig
             {
                 ProcessName = "ProcessA",
@@ -17,6 +19,8 @@ namespace Octovisor.Tests.ClientProcessA
             };
 
             OctovisorClient client = new OctovisorClient(config);
+            client.OnError += e => Console.WriteLine(e); //debug
+
             RemoteProcess process = client.ListenToProcess("ProcessB");
             MessageListener<int> listener = process.ListenToMessage<int>("TEST");
 
