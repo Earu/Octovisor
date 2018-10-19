@@ -14,19 +14,22 @@ namespace Octovisor.Server.Models
 
     internal class ProcessMessage
     {
-        [JsonProperty(PropertyName="origin")]
+        [JsonProperty(PropertyName = "id")]
+        internal ulong ID { get; set; }
+
+        [JsonProperty(PropertyName = "origin")]
         internal string OriginName { get; set; }
 
-        [JsonProperty(PropertyName="target")]
+        [JsonProperty(PropertyName = "target")]
         internal string TargetName { get; set; }
-            
-        [JsonProperty(PropertyName="msg_identifier")]
+
+        [JsonProperty(PropertyName = "msg_identifier")]
         internal string MessageIdentifier { get; set; }
 
-        [JsonProperty(PropertyName="data")]
+        [JsonProperty(PropertyName = "data")]
         internal string Data { get; set; }
 
-        [JsonProperty(PropertyName="status")]
+        [JsonProperty(PropertyName = "status")]
         internal ProcessMessageStatus Status { get; set; }
 
         internal static ProcessMessage Deserialize(string json)
@@ -35,15 +38,16 @@ namespace Octovisor.Server.Models
             {
                 return JsonConvert.DeserializeObject<ProcessMessage>(json);
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 return new ProcessMessage
                 {
-                    OriginName        = "UNKNOWN_ORIGIN",
-                    TargetName        = "UNKNOWN_TARGET",
+                    ID = 0,
+                    OriginName = "UNKNOWN_ORIGIN",
+                    TargetName = "UNKNOWN_TARGET",
                     MessageIdentifier = "UNKNOWN",
-                    Data              = e.ToString(),
-                    Status            = ProcessMessageStatus.MalformedMessageError,
+                    Data = e.ToString(),
+                    Status = ProcessMessageStatus.MalformedMessageError,
                 };
             }
         }

@@ -10,10 +10,14 @@ namespace Octovisor.Client.Models
         TargetError = 2,
         NetworkError = 3,
         MalformedMessageError = 4,
+        OriginError = 5,
     }
 
     internal class ProcessMessage
     {
+        [JsonProperty(PropertyName = "id")]
+        internal ulong ID { get; set; }
+
         [JsonProperty(PropertyName = "origin")]
         internal string OriginName { get; set; }
 
@@ -39,6 +43,7 @@ namespace Octovisor.Client.Models
             {
                 return new ProcessMessage
                 {
+                    ID = 0,
                     OriginName = "UNKNOWN_ORIGIN",
                     TargetName = "UNKNOWN_TARGET",
                     MessageIdentifier = "UNKNOWN",
