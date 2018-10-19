@@ -1,9 +1,12 @@
-﻿using Newtonsoft.Json;
+﻿using System.Threading.Tasks;
+using Newtonsoft.Json;
 
 namespace Octovisor.Client.Models
 {
     public class MessageListener<T>
     {
+        private static ulong CurrentMsgId = 0;
+
         private RemoteProcess Process { get; set; }
         private string MessageIdentifier { get; set; }
 
@@ -13,36 +16,24 @@ namespace Octovisor.Client.Models
             this.MessageIdentifier = midentifier;
         }
 
-        public bool Write(T data)
+        public async Task<T> Listen()
         {
+            ProcessMessage msg = new ProcessMessage
+            {
+                ID = ++CurrentMsgId,
+                MessageIdentifier = this.MessageIdentifier,
+                OriginName = this.Process.Client.Config.ProcessName,
+                TargetName = this.Process.Name,
+                Data = null,
+                Status = ProcessMessageStatus.OK
+            };
+            this.Process.Client.Send(msg);
+            TaskCompletionSource<ProcessMessage> tcs = 
+                this.Process.Client.GetTCS(this.Process.Name,msg.ID);
+
             try
             {
-                ProcessMessage msg = new ProcessMessage
-                {
-                    Data = JsonConvert.SerializeObject(data),
-                    MessageIdentifier = this.MessageIdentifier,
-                    OriginName = this.Process.Client.Config.ProcessName,
-                    TargetName = this.Process.Name
-                };
-
-                this.Process.Client.Send(JsonConvert.SerializeObject(msg));
-
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
-
-        }
-
-        public T Read()
-        {
-            try
-            {
-                string json = this.Process.Client.Receive();
-                ProcessMessage msg = ProcessMessage.Deserialize(json);
-
+                msg = await tcs.Task;
                 return JsonConvert.DeserializeObject<T>(msg.Data);
             }
             catch
@@ -50,5 +41,6 @@ namespace Octovisor.Client.Models
                 return default(T);
             }
         }
+
     }
 }

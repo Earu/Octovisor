@@ -1,5 +1,6 @@
 ﻿using Octovisor.Client.Models;
 using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -17,7 +18,7 @@ namespace Octovisor.Client
         private readonly ManualResetEvent OnReceiveDone;
 
         private Socket Client;
-        private string Response;
+        private readonly Dictionary<string,Dictionary<ulong, TaskCompletionSource<ProcessMessage>>> ResponseQueue;
 
         internal readonly OctovisorConfig Config;
 
@@ -28,7 +29,7 @@ namespace Octovisor.Client
             if (!config.IsValid)
                 throw new Exception("Invalid Octovisor config");
 
-            this.Response      = string.Empty;
+            this.ResponseQueue = new Dictionary<string, Dictionary<ulong, TaskCompletionSource<ProcessMessage>>>();
             this.Config        = config;
             this.OnConnectDone = new ManualResetEvent(false);
             this.OnSendDone    = new ManualResetEvent(false);
@@ -64,31 +65,30 @@ namespace Octovisor.Client
                 this.IsConnected = false;
                 this.CallErrorEvent(e);
             }
+
+            this.StartReceiving();
         }
 
         internal void RegisterOnServer()
         {
-            ProcessMessage msg = new ProcessMessage {
+            this.Send(new ProcessMessage
+            {
                 OriginName = this.Config.ProcessName,
                 TargetName = "SERVER",
                 MessageIdentifier = "INTERNAL_OCTOVISOR_PROCESS_INIT",
                 Data = null,
-            };
-
-            this.Send(msg.Serialize());
+            });
         }
 
         internal void EndOnServer()
         {
-            ProcessMessage msg = new ProcessMessage
+            this.Send(new ProcessMessage
             {
                 OriginName = this.Config.ProcessName,
                 TargetName = "SERVER",
                 MessageIdentifier = "INTERNAL_OCTOVISOR_PROCESS_END",
                 Data = null,
-            };
-
-            this.Send(msg.Serialize());
+            });
         }
 
         private void ConnectCallback(IAsyncResult ar)
@@ -106,25 +106,19 @@ namespace Octovisor.Client
             }
         }
 
-        internal string Receive()
+        private void StartReceiving()
         {
+            if (!this.IsConnected) return;
+            
             try
             {
-                StateObject state = new StateObject
-                {
-                    WorkSocket = this.Client
-                };
+                StateObject state = new StateObject(this.Client);
 
                 this.Client.BeginReceive(state.Buffer, 0, StateObject.BufferSize, 0, new AsyncCallback(this.ReceiveCallback), state);
-
-                this.OnReceiveDone.WaitOne();
-
-                return Response;
             }
             catch(Exception e) 
             {
                 this.CallErrorEvent(e);
-                return null;
             }
         }
 
@@ -139,15 +133,22 @@ namespace Octovisor.Client
 
                 if (bytesread > 0)
                 {
-                    state.Builder.Append(Encoding.UTF8.GetString(state.Buffer, 0, bytesread));
+                    string data = Encoding.UTF8.GetString(state.Buffer, 0, bytesread);
+                    ProcessMessage msg = ProcessMessage.Deserialize(data);
+                    if(this.ResponseQueue.ContainsKey(msg.TargetName) && msg.OriginName == this.Config.ProcessName)
+                    {
+                        Dictionary<ulong,TaskCompletionSource<ProcessMessage>> processtcs = this.ResponseQueue[msg.TargetName];
+                        if(processtcs.ContainsKey(msg.ID))
+                        {
+                            TaskCompletionSource<ProcessMessage> tsource = processtcs[msg.ID];
+                            tsource.SetResult(msg);
+                        }
+                    }
 
                     client.BeginReceive(state.Buffer, 0, StateObject.BufferSize, 0, new AsyncCallback(this.ReceiveCallback), state);
                 }
                 else
                 {
-                    if (state.Builder.Length > 1)
-                        Response = state.Builder.ToString();
-
                     this.OnReceiveDone.Set();
                 }
             }
@@ -157,8 +158,16 @@ namespace Octovisor.Client
             }
         }
 
-        internal void Send(string data)
+        internal void Send(ProcessMessage msg)
         {
+            if (!this.IsConnected) return;
+
+            if (!this.ResponseQueue.ContainsKey(msg.TargetName))
+                this.ResponseQueue[msg.TargetName] = new Dictionary<ulong, TaskCompletionSource<ProcessMessage>>();
+            Dictionary<ulong, TaskCompletionSource<ProcessMessage>> processtcs = this.ResponseQueue[msg.TargetName];
+            processtcs.Add(msg.ID, new TaskCompletionSource<ProcessMessage>());
+
+            string data = msg.Serialize();
             byte[] bytedata = Encoding.UTF8.GetBytes(data);
 
             this.Client.BeginSend(bytedata, 0, bytedata.Length, 0, new AsyncCallback(this.SendCallback), this.Client);
@@ -180,6 +189,21 @@ namespace Octovisor.Client
             {
                 this.CallErrorEvent(e);
             }
+        }
+
+        internal TaskCompletionSource<ProcessMessage> GetTCS(string process, ulong id)
+        {
+            if (this.ResponseQueue.ContainsKey(process))
+            {
+                Dictionary<ulong, TaskCompletionSource<ProcessMessage>> processtcs = this.ResponseQueue[process];
+                if (processtcs.ContainsKey(id))
+                    return processtcs[id];
+            }
+
+            TaskCompletionSource<ProcessMessage> failtcs = new TaskCompletionSource<ProcessMessage>();
+            failtcs.SetException(new Exception($"No TCS for process {process} with message id {id}"));
+
+            return failtcs;
         }
 
         public RemoteProcess ListenToProcess(string process)

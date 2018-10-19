@@ -11,9 +11,9 @@ namespace Octovisor.Client.Models
         internal byte[] Buffer { get; }
         internal StringBuilder Builder { get; }
 
-        internal StateObject()
+        internal StateObject(Socket client)
         {
-            this.WorkSocket = null;
+            this.WorkSocket = client;
             this.Buffer = new byte[BufferSize];
             this.Builder = new StringBuilder();
         }

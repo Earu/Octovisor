@@ -16,7 +16,6 @@ namespace Octovisor.Server
         private readonly OctovisorLogger Logger;
         private readonly string ServerAddress;
         private readonly int ServerPort;
-        private readonly List<Thread> ConnectionThreads;
         private readonly Dictionary<string, StateObject> States;
 
         internal OctovisorServer(string srvadr,int srvport)
@@ -25,7 +24,6 @@ namespace Octovisor.Server
             this.Logger            = new OctovisorLogger();
             this.ServerAddress     = srvadr;
             this.ServerPort        = srvport;
-            this.ConnectionThreads = new List<Thread>();
             this.States            = new Dictionary<string, StateObject>();
         }
 
@@ -69,11 +67,19 @@ namespace Octovisor.Server
 
             // This part is very important it brings the processing into a new thread so 
             // it doesnt block other connections 
-            Thread thread = new Thread(() => state.WorkSocket.BeginReceive(state.Buffer, 0, 
-                StateObject.BufferSize, SocketFlags.None, new AsyncCallback(this.ReadCallback), state));
+            Thread thread = new Thread(() =>
+            {
+                try
+                {
+                    state.WorkSocket.BeginReceive(state.Buffer, 0,
+                        StateObject.BufferSize, SocketFlags.None, new AsyncCallback(this.ReadCallback), state);
+                }
+                catch(Exception e)
+                {
+                    this.Logger.Error($"{e}");
+                }
+            });
             thread.Start();
-
-            this.ConnectionThreads.Add(thread);
         }
 
         private void ReadCallback(IAsyncResult ar)

@@ -24,8 +24,8 @@ namespace Octovisor.Tests.ClientProcessB
             RemoteProcess process = client.ListenToProcess("ProcessA");
             MessageListener<int> listener = process.ListenToMessage<int>("TEST");
 
-            int result = listener.Read();
-            Console.WriteLine(result);
+            //int result = listener.Read();
+            //Console.WriteLine(result);
             Console.Read();
         }
     }
