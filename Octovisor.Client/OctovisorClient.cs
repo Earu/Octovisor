@@ -12,15 +12,15 @@ namespace Octovisor.Client
     public class OctovisorClient
     {
         public event Action<Exception> OnError;
+        public event Action<string> Log;
 
         private readonly ManualResetEvent OnConnectDone;
         private readonly ManualResetEvent OnSendDone;
         private readonly ManualResetEvent OnReceiveDone;
 
         private Socket Client;
-        private readonly Dictionary<string,Dictionary<ulong, TaskCompletionSource<ProcessMessage>>> ResponseQueue;
 
-        internal readonly OctovisorConfig Config;
+        private readonly OctovisorConfig Config;
 
         public bool IsConnected { get; private set; }
 
@@ -28,8 +28,7 @@ namespace Octovisor.Client
         {
             if (!config.IsValid)
                 throw new Exception("Invalid Octovisor config");
-
-            this.ResponseQueue = new Dictionary<string, Dictionary<ulong, TaskCompletionSource<ProcessMessage>>>();
+                
             this.Config        = config;
             this.OnConnectDone = new ManualResetEvent(false);
             this.OnSendDone    = new ManualResetEvent(false);
@@ -39,11 +38,18 @@ namespace Octovisor.Client
         }
 
         private void CallErrorEvent(Exception e) => this.OnError?.Invoke(e);
+        private void CallLogEvent(string log) => this.Log?.Invoke(log);
 
         /// <summary>
         /// This is called into the constructor so do not use it again unless you get disconnected
         /// </summary>
         public void Connect()
+        {
+            Thread thread = new Thread(this.InternalConnect);
+            thread.Start();
+        }
+
+        private void InternalConnect()
         {
             try
             {
@@ -52,13 +58,12 @@ namespace Octovisor.Client
                 IPEndPoint endpoint = new IPEndPoint(ipadr, this.Config.ServerPort);
 
                 this.Client = new Socket(ipadr.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-
                 this.Client.BeginConnect(endpoint, new AsyncCallback(this.ConnectCallback), this.Client);
                 this.OnConnectDone.WaitOne();
 
-                this.RegisterOnServer();
-
                 this.IsConnected = true;
+
+                this.RegisterOnServer();
             }
             catch(Exception e)
             {
@@ -66,10 +71,10 @@ namespace Octovisor.Client
                 this.CallErrorEvent(e);
             }
 
-            this.StartReceiving();
+            //this.StartReceiving();
         }
 
-        internal void RegisterOnServer()
+        private void RegisterOnServer()
         {
             this.Send(new ProcessMessage
             {
@@ -77,10 +82,13 @@ namespace Octovisor.Client
                 TargetName = "SERVER",
                 MessageIdentifier = "INTERNAL_OCTOVISOR_PROCESS_INIT",
                 Data = null,
+                Status = ProcessMessageStatus.OK,
             });
+
+            this.CallLogEvent("Registering on server");
         }
 
-        internal void EndOnServer()
+        private void EndOnServer()
         {
             this.Send(new ProcessMessage
             {
@@ -88,7 +96,10 @@ namespace Octovisor.Client
                 TargetName = "SERVER",
                 MessageIdentifier = "INTERNAL_OCTOVISOR_PROCESS_END",
                 Data = null,
+                Status = ProcessMessageStatus.OK,
             });
+
+            this.CallLogEvent("Ending on server");
         }
 
         private void ConnectCallback(IAsyncResult ar)
@@ -109,7 +120,9 @@ namespace Octovisor.Client
         private void StartReceiving()
         {
             if (!this.IsConnected) return;
-            
+
+            this.CallLogEvent("Beginning receiving from server");
+
             try
             {
                 StateObject state = new StateObject(this.Client);
@@ -134,16 +147,7 @@ namespace Octovisor.Client
                 if (bytesread > 0)
                 {
                     string data = Encoding.UTF8.GetString(state.Buffer, 0, bytesread);
-                    ProcessMessage msg = ProcessMessage.Deserialize(data);
-                    if(this.ResponseQueue.ContainsKey(msg.TargetName) && msg.OriginName == this.Config.ProcessName)
-                    {
-                        Dictionary<ulong,TaskCompletionSource<ProcessMessage>> processtcs = this.ResponseQueue[msg.TargetName];
-                        if(processtcs.ContainsKey(msg.ID))
-                        {
-                            TaskCompletionSource<ProcessMessage> tsource = processtcs[msg.ID];
-                            tsource.SetResult(msg);
-                        }
-                    }
+                    this.CallLogEvent($"Received {bytesread} bytes.\nData: {data}");
 
                     client.BeginReceive(state.Buffer, 0, StateObject.BufferSize, 0, new AsyncCallback(this.ReceiveCallback), state);
                 }
@@ -158,20 +162,15 @@ namespace Octovisor.Client
             }
         }
 
-        internal void Send(ProcessMessage msg)
+        private void Send(ProcessMessage msg)
         {
             if (!this.IsConnected) return;
-
-            if (!this.ResponseQueue.ContainsKey(msg.TargetName))
-                this.ResponseQueue[msg.TargetName] = new Dictionary<ulong, TaskCompletionSource<ProcessMessage>>();
-            Dictionary<ulong, TaskCompletionSource<ProcessMessage>> processtcs = this.ResponseQueue[msg.TargetName];
-            processtcs.Add(msg.ID, new TaskCompletionSource<ProcessMessage>());
 
             string data = msg.Serialize();
             byte[] bytedata = Encoding.UTF8.GetBytes(data);
 
+            this.CallLogEvent($"Sending {data.Length} bytes.\nData: {data}");
             this.Client.BeginSend(bytedata, 0, bytedata.Length, 0, new AsyncCallback(this.SendCallback), this.Client);
-
             this.OnSendDone.WaitOne();
         }
 
@@ -180,7 +179,6 @@ namespace Octovisor.Client
             try
             {
                 Socket client = (Socket)ar.AsyncState;
-
                 client.EndSend(ar);
 
                 this.OnSendDone.Set();
@@ -191,22 +189,17 @@ namespace Octovisor.Client
             }
         }
 
-        internal TaskCompletionSource<ProcessMessage> GetTCS(string process, ulong id)
+        public void SendGarbage(string proc,string msg)
         {
-            if (this.ResponseQueue.ContainsKey(process))
+            this.Send(new ProcessMessage
             {
-                Dictionary<ulong, TaskCompletionSource<ProcessMessage>> processtcs = this.ResponseQueue[process];
-                if (processtcs.ContainsKey(id))
-                    return processtcs[id];
-            }
-
-            TaskCompletionSource<ProcessMessage> failtcs = new TaskCompletionSource<ProcessMessage>();
-            failtcs.SetException(new Exception($"No TCS for process {process} with message id {id}"));
-
-            return failtcs;
+                ID = 666,
+                TargetName = proc,
+                MessageIdentifier = msg,
+                OriginName = this.Config.ProcessName,
+                Data = null,
+                Status = ProcessMessageStatus.OK,
+            });
         }
-
-        public RemoteProcess ListenToProcess(string process)
-            => new RemoteProcess(this, process);
     }
 }
