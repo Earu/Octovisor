@@ -71,7 +71,7 @@ namespace Octovisor.Client
                 this.CallErrorEvent(e);
             }
 
-            //this.StartReceiving();
+            this.StartReceiving();
         }
 
         private void RegisterOnServer()
@@ -162,7 +162,7 @@ namespace Octovisor.Client
             }
         }
 
-        private void Send(ProcessMessage msg)
+        private void Send(ProcessMessage msg,Action<IAsyncResult> callback=null)
         {
             if (!this.IsConnected) return;
 
@@ -170,7 +170,10 @@ namespace Octovisor.Client
             byte[] bytedata = Encoding.UTF8.GetBytes(data);
 
             this.CallLogEvent($"Sending {data.Length} bytes.\nData: {data}");
-            this.Client.BeginSend(bytedata, 0, bytedata.Length, 0, new AsyncCallback(this.SendCallback), this.Client);
+            this.Client.BeginSend(bytedata, 0, bytedata.Length, 0, new AsyncCallback(res => {
+                this.SendCallback(res);
+                callback?.Invoke(res);
+            }), this.Client);
             this.OnSendDone.WaitOne();
         }
 
