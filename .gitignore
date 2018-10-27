@@ -260,3 +260,9 @@ paket-files/
 __pycache__/
 *.pyc
 Octovisor\.Server/logs\.txt
+
+Octovisor\.Server/server\.crt
+
+Octovisor\.Client/Models/\.DS_Store
+
+Octovisor\.Server/\.DS_Store

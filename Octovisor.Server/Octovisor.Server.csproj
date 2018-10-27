@@ -9,4 +9,7 @@
     <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Remove="server.crt" />
+  </ItemGroup>
 </Project>
