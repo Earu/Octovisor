@@ -21,11 +21,6 @@ namespace Octovisor.Tests.ClientProcessA
             OctovisorClient client = new OctovisorClient(config);
             client.OnError += e => Console.WriteLine(e); //debug
 
-            RemoteProcess process = client.ListenToProcess("ProcessB");
-            MessageListener<int> listener = process.ListenToMessage<int>("TEST");
-
-            //listener.Write(1);
-
             Console.Read();
         }
     }
