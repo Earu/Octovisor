@@ -89,6 +89,9 @@ namespace Octovisor.Server
                     this.ResetEvent.WaitOne();
                 }
 
+                foreach (KeyValuePair<string, StateObject> kv in this.States)
+                    this.EndRemoteProcess(kv.Key);
+
                 this.Listener.Close();
             }
             catch (Exception e)
@@ -197,6 +200,7 @@ namespace Octovisor.Server
             else
             {
                 StateObject state = this.States[name];
+                state.WorkSocket.Close();
                 this.States.Remove(name);
                 this.Logger.Write(ConsoleColor.Yellow, "Process", $"Ending remote process | {name} @ {state.WorkSocket.RemoteEndPoint}");
             }
