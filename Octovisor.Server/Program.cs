@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Net;
 
 namespace Octovisor.Server
 {
@@ -9,7 +8,7 @@ namespace Octovisor.Server
         {
             Console.Title = "OctovisorServer";
 
-            OctovisorServer server = new OctovisorServer(Dns.GetHostName(),1100);
+            OctovisorServer server = new OctovisorServer("127.0.0.1",1100);
             server.Run();
         }
     }
