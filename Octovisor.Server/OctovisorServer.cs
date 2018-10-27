@@ -118,7 +118,7 @@ namespace Octovisor.Server
                 }
                 catch(Exception e)
                 {
-                    this.Logger.Error($"{e}");
+                    this.Logger.Error(e.ToString());
                 }
             });
             thread.Start();
