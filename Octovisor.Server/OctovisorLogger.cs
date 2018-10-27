@@ -3,25 +3,41 @@ using System.IO;
 
 namespace Octovisor.Server
 {
-    internal class OctovisorLogger
+    public class OctovisorLogger
     {
-        private void Prefix()
+        public event Func<DateTime, string, string, bool> Log;
+
+        private bool CallLogEvent(DateTime time, string head, string content)
+            => this.Log?.Invoke(time, head, content) ?? true;
+
+        private string FormatTime(DateTime time)
+            => $"{time.TimeOfDay.Hours:00}:{time.TimeOfDay.Minutes:00}";
+
+        private void Prefix(DateTime time)
         {
             Console.ForegroundColor = ConsoleColor.DarkYellow;
             Console.Write("> ");
             Console.ForegroundColor = ConsoleColor.Gray;
-            int hour = DateTime.Now.TimeOfDay.Hours;
-            int minute = DateTime.Now.TimeOfDay.Minutes;
-            Console.Write($"{hour:00}:{minute:00} - ");
+            Console.Write($"{this.FormatTime(time)} - ");
         }
 
-        private void SaveToFile(string head, string content)
-            => File.AppendAllText("logs.txt", $"[{head.ToUpper()}] >> {content}\n\n");
-
-
-        internal void Log(ConsoleColor col, string head, string content)
+        private void SaveToFile(DateTime time, string head, string content)
         {
-            this.Prefix();
+            bool save = this.CallLogEvent(time, head, content);
+
+            if (save)
+            {
+                File.AppendAllText("logs.txt", 
+                    $"{this.FormatTime(time)} - [{head.ToUpper()}] >> {content}\n\n");
+            }
+        }
+
+
+        public void Write(ConsoleColor col, string head, string content)
+        {
+            DateTime now = DateTime.Now;
+            this.Prefix(now);
+
             Console.ForegroundColor = ConsoleColor.White;
             Console.Write("[");
             Console.ForegroundColor = col;
@@ -30,29 +46,33 @@ namespace Octovisor.Server
             Console.Write("] >> ");
             Console.WriteLine(content);
 
-            this.SaveToFile(head, content);
+            this.SaveToFile(now, head, content);
         }
 
-        internal void Debug(string content) => this.Log(ConsoleColor.Cyan, "Debug", content);
+        internal void Debug(string content) => this.Write(ConsoleColor.Cyan, "Debug", content);
 
         internal void Warn(string content)
         {
-            this.Prefix();
+            DateTime now = DateTime.Now;
+            this.Prefix(now);
+
             Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine($"[WARN] >> {content}");
 
-            this.SaveToFile("WARN", content);
+            this.SaveToFile(now, "WARN", content);
         }
 
         internal void Error(string content)
         {
-            this.Prefix();
+            DateTime now = DateTime.Now;
+            this.Prefix(now);
+
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine($"[ERROR] >> {content}");
 
-            this.SaveToFile("ERROR", content);
+            this.SaveToFile(now, "ERROR", content);
         }
 
-        internal void Pause() => Console.Read();
+        public void Read() => Console.Read();
     }
 }
