@@ -18,14 +18,14 @@ namespace Octovisor.Client
 
         private Socket Client;
 
-        private readonly OctovisorConfig Config;
+        private readonly ClientConfig Config;
 
         public bool IsConnected { get; private set; }
 
-        public OctovisorClient(OctovisorConfig config)
+        public OctovisorClient(ClientConfig config)
         {
-            if (!config.IsValid)
-                throw new Exception("Invalid Octovisor config");
+            if (!config.IsValid())
+                throw new Exception("Invalid Octovisor client configuration");
                 
             this.Config        = config;
             this.OnConnectDone = new ManualResetEvent(false);
