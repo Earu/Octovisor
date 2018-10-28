@@ -31,7 +31,7 @@ namespace Octovisor.Server
         /// </summary>
         /// <param name="srvadr">The address or domain to listen to</param>
         /// <param name="srvport">The port to use</param>
-        /// <param name="cqlen">The maximum amount of connections in the queue</param>
+        /// <param name="cqlen">The maximum amount of processes (default is 255)</param>
         public OctovisorServer(string srvadr,int srvport,int cqlen=255)
         {
             this.MaximumConnections    = cqlen;
@@ -196,7 +196,7 @@ namespace Octovisor.Server
             if (this.States.ContainsKey(name))
                 this.Logger.Warn($"Cannot register remote process with an existing name ({name}). Discarding.");
             else if (this.States.Count >= this.MaximumConnections)
-                this.Logger.Error($"Could not register remote process {name}. Exceeding the maximum remote processes amount.");
+                this.Logger.Error($"Could not register remote process {name}. Exceeding the maximum amount of remote processes.");
             else
             {
                 this.States.Add(name, state);
