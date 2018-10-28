@@ -266,3 +266,5 @@ Octovisor\.Server/server\.crt
 Octovisor\.Client/Models/\.DS_Store
 
 Octovisor\.Server/\.DS_Store
+
+\.DS_Store

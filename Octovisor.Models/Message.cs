@@ -1,9 +1,9 @@
 ﻿using Newtonsoft.Json;
 using System;
 
-namespace Octovisor.Server.Models
+namespace Octovisor.Models
 {
-    internal enum ProcessMessageStatus
+    public enum MessageStatus
     {
         OK                    = 0,
         ServerError           = 1,
@@ -12,47 +12,47 @@ namespace Octovisor.Server.Models
         MalformedMessageError = 4,
     }
 
-    internal class ProcessMessage
+    public class Message
     {
         [JsonProperty(PropertyName = "id")]
-        internal ulong ID { get; set; }
+        public ulong ID { get; set; }
 
         [JsonProperty(PropertyName = "origin")]
-        internal string OriginName { get; set; }
+        public string OriginName { get; set; }
 
         [JsonProperty(PropertyName = "target")]
-        internal string TargetName { get; set; }
+        public string TargetName { get; set; }
 
-        [JsonProperty(PropertyName = "msg_identifier")]
-        internal string MessageIdentifier { get; set; }
+        [JsonProperty(PropertyName = "identifier")]
+        public string Identifier { get; set; }
 
         [JsonProperty(PropertyName = "data")]
-        internal string Data { get; set; }
+        public string Data { get; set; }
 
         [JsonProperty(PropertyName = "status")]
-        internal ProcessMessageStatus Status { get; set; }
+        public MessageStatus Status { get; set; }
 
-        internal static ProcessMessage Deserialize(string json)
+        public static Message Deserialize(string json)
         {
             try
             {
-                return JsonConvert.DeserializeObject<ProcessMessage>(json);
+                return JsonConvert.DeserializeObject<Message>(json);
             }
             catch (Exception e)
             {
-                return new ProcessMessage
+                return new Message
                 {
                     ID = 0,
                     OriginName = "UNKNOWN_ORIGIN",
                     TargetName = "UNKNOWN_TARGET",
-                    MessageIdentifier = "UNKNOWN",
+                    Identifier = "UNKNOWN",
                     Data = e.ToString(),
-                    Status = ProcessMessageStatus.MalformedMessageError,
+                    Status = MessageStatus.MalformedMessageError,
                 };
             }
         }
 
-        internal string Serialize()
+        public string Serialize()
             => JsonConvert.SerializeObject(this);
     }
 }
