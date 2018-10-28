@@ -1,4 +1,5 @@
 ﻿using System;
+using Octovisor.Models;
 
 namespace Octovisor.Server
 {
@@ -8,7 +9,14 @@ namespace Octovisor.Server
         {
             Console.Title = "OctovisorServer";
 
-            OctovisorServer server = new OctovisorServer("127.0.0.1",1100);
+            ServerConfig config = new ServerConfig
+            {
+                ServerAddress = "127.0.0.1",
+                ServerPort = 1100,
+                Token = "MEMES"
+            };
+
+            OctovisorServer server = new OctovisorServer(config);
             server.Run();
         }
     }

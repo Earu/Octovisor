@@ -14,10 +14,8 @@ namespace Octovisor.Server
         private Socket Listener;
         private Thread Thread;
 
-        private readonly int MaximumConnections;
+        private readonly ServerConfig Config;
         private readonly ManualResetEvent ResetEvent;
-        private readonly string ServerAddress;
-        private readonly int ServerPort;
         private readonly Dictionary<string, StateObject> States;
 
         /// <summary>
@@ -29,17 +27,15 @@ namespace Octovisor.Server
         /// <summary>
         /// Initializes a new instance of the <see cref="T:Octovisor.Server.OctovisorServer"/> class.
         /// </summary>
-        /// <param name="srvadr">The address or domain to listen to</param>
-        /// <param name="srvport">The port to use</param>
-        /// <param name="cqlen">The maximum amount of processes (default is 255)</param>
-        public OctovisorServer(string srvadr,int srvport,int cqlen=255)
+        public OctovisorServer(ServerConfig config)
         {
-            this.MaximumConnections    = cqlen;
+            if (!config.IsValid())
+                throw new Exception("Invalid Octovisor server configuration");
+
+            this.Config                = config;
             this.ShouldRun             = true;
             this.ResetEvent            = new ManualResetEvent(false);
             this.Logger                = new OctovisorLogger();
-            this.ServerAddress         = srvadr;
-            this.ServerPort            = srvport;
             this.States                = new Dictionary<string, StateObject>();
         }
 
@@ -74,13 +70,13 @@ namespace Octovisor.Server
         {
             try
             {
-                IPHostEntry hostinfo = Dns.GetHostEntry(this.ServerAddress);
+                IPHostEntry hostinfo = Dns.GetHostEntry(this.Config.ServerAddress);
                 IPAddress ipadr = hostinfo.AddressList[0];
-                IPEndPoint endpoint = new IPEndPoint(ipadr, this.ServerPort);
+                IPEndPoint endpoint = new IPEndPoint(ipadr, this.Config.ServerPort);
 
                 this.Listener = new Socket(SocketType.Stream,ProtocolType.Tcp);
                 this.Listener.Bind(endpoint);
-                this.Listener.Listen(this.MaximumConnections);
+                this.Listener.Listen(this.Config.MaximumProcesses);
 
                 this.Logger.Write(ConsoleColor.Magenta, "Server", "Waiting for a connection...");
 
@@ -92,7 +88,7 @@ namespace Octovisor.Server
                 }
 
                 foreach (KeyValuePair<string, StateObject> kv in this.States)
-                    this.EndRemoteProcess(kv.Key);
+                    this.EndRemoteProcess(kv.Key,this.Config.Token);
 
                 this.Listener.Shutdown(SocketShutdown.Both);
                 this.Listener.Close();
@@ -124,18 +120,6 @@ namespace Octovisor.Server
             }
         }
 
-        private bool IsSocketConnected(Socket socket)
-        {
-            try
-            {
-                return !(socket.Poll(1, SelectMode.SelectRead) && socket.Available == 0);
-            }
-            catch 
-            { 
-                return false; 
-            }
-        }
-
         private void ReadCallback(IAsyncResult ar)
         {
             string content = string.Empty;
@@ -155,10 +139,10 @@ namespace Octovisor.Server
                 switch (msg.Identifier)
                 {
                     case "INTERNAL_OCTOVISOR_PROCESS_INIT":
-                        this.RegisterRemoteProcess(msg.OriginName, state);
+                        this.RegisterRemoteProcess(msg.OriginName, state, msg.Data);
                         break;
                     case "INTERNAL_OCTOVISOR_PROCESS_END":
-                        this.EndRemoteProcess(msg.OriginName);
+                        this.EndRemoteProcess(msg.OriginName, msg.Data);
                         break;
                     default:
                         this.DispatchMessage(msg);
@@ -171,11 +155,20 @@ namespace Octovisor.Server
             }
         }
 
-        private void Send(Socket handler, string data)
+        private void Send(StateObject state, Message msg)
         {
-            byte[] bytedata = Encoding.UTF8.GetBytes(data);
+            try
+            {
+                Socket handler = state.WorkSocket;
+                byte[] bytedata = Encoding.UTF8.GetBytes(msg.Serialize());
 
-            handler.BeginSend(bytedata, 0, bytedata.Length, 0, this.SendCallback, handler);
+                handler.BeginSend(bytedata, 0, bytedata.Length, 0, this.SendCallback, handler);
+            }
+            catch(SocketException)
+            {
+                this.Logger.Error($"The remote process ({msg.TargetName}) is not available because it was forcibly closed.");
+                this.EndRemoteProcess(msg.TargetName,msg.Data);
+            }
         }
 
         private void SendCallback(IAsyncResult ar)
@@ -191,11 +184,11 @@ namespace Octovisor.Server
             }
         }
 
-        private void RegisterRemoteProcess(string name,StateObject state)
+        private void RegisterRemoteProcess(string name,StateObject state, string token)
         {
             if (this.States.ContainsKey(name))
                 this.Logger.Warn($"Cannot register remote process with an existing name ({name}). Discarding.");
-            else if (this.States.Count >= this.MaximumConnections)
+            else if (this.States.Count >= this.Config.MaximumProcesses)
                 this.Logger.Error($"Could not register remote process {name}. Exceeding the maximum amount of remote processes.");
             else
             {
@@ -204,9 +197,11 @@ namespace Octovisor.Server
             }
         }
 
-        private void EndRemoteProcess(string name)
+        private void EndRemoteProcess(string name, string token)
         {
-            if (!this.States.ContainsKey(name))
+            if (token != this.Config.Token)
+                this.Logger.Warn($"Attempt to end a remote process with invalid token.");
+            else if (!this.States.ContainsKey(name))
                 this.Logger.Warn($"Attempt to end a non-existing remote process ({name}). Discarding.");
             else
             {
@@ -220,18 +215,25 @@ namespace Octovisor.Server
 
         private void DispatchMessage(Message msg)
         {
-            if (this.States.ContainsKey(msg.TargetName))
+            if (this.States.ContainsKey(msg.TargetName) && this.States.ContainsKey(msg.OriginName))
             {
                 StateObject state = this.States[msg.TargetName];
-                this.Send(state.WorkSocket, msg.Serialize());
+                this.Send(state,msg);
                 this.Logger.Write(ConsoleColor.Green, "Message", $"Forwarded {msg.Data.Length} bytes " +
                     $"| (ID: {msg.Identifier}) {msg.OriginName} -> {msg.TargetName}");
             }
             else
             {
-                this.Logger.Warn($"No such remote process ({msg.TargetName}). Sending message back.");
-                StateObject state = this.States[msg.OriginName];
-                this.Send(state.WorkSocket, msg.Serialize());
+                if (!this.States.ContainsKey(msg.OriginName))
+                {
+                    this.Logger.Warn($"Unknown remote process {msg.OriginName} tried to forward {msg.Data.Length} bytes to {msg.TargetName}");
+                }
+                else
+                {
+                    this.Logger.Warn($"No such remote process ({msg.TargetName}). Sending message back.");
+                    StateObject state = this.States[msg.OriginName];
+                    this.Send(state, msg);
+                }
             }
         }
     }
