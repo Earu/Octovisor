@@ -1,11 +1,9 @@
-﻿using Octovisor.Client.Models;
-using System;
-using System.Collections.Generic;
+﻿using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
+using Octovisor.Models;
 
 namespace Octovisor.Client
 {
@@ -76,13 +74,13 @@ namespace Octovisor.Client
 
         private void RegisterOnServer()
         {
-            this.Send(new ProcessMessage
+            this.Send(new Message
             {
                 OriginName = this.Config.ProcessName,
                 TargetName = "SERVER",
-                MessageIdentifier = "INTERNAL_OCTOVISOR_PROCESS_INIT",
+                Identifier = "INTERNAL_OCTOVISOR_PROCESS_INIT",
                 Data = null,
-                Status = ProcessMessageStatus.OK,
+                Status = MessageStatus.OK,
             });
 
             this.CallLogEvent("Registering on server");
@@ -90,13 +88,13 @@ namespace Octovisor.Client
 
         private void EndOnServer()
         {
-            this.Send(new ProcessMessage
+            this.Send(new Message
             {
                 OriginName = this.Config.ProcessName,
                 TargetName = "SERVER",
-                MessageIdentifier = "INTERNAL_OCTOVISOR_PROCESS_END",
+                Identifier = "INTERNAL_OCTOVISOR_PROCESS_END",
                 Data = null,
-                Status = ProcessMessageStatus.OK,
+                Status = MessageStatus.OK,
             });
 
             this.CallLogEvent("Ending on server");
@@ -162,7 +160,7 @@ namespace Octovisor.Client
             }
         }
 
-        private void Send(ProcessMessage msg,Action<IAsyncResult> callback=null)
+        private void Send(Message msg,Action<IAsyncResult> callback=null)
         {
             if (!this.IsConnected) return;
 
@@ -194,14 +192,14 @@ namespace Octovisor.Client
 
         public void SendGarbage(string proc,string msg)
         {
-            this.Send(new ProcessMessage
+            this.Send(new Message
             {
                 ID = 666,
                 TargetName = proc,
-                MessageIdentifier = msg,
+                Identifier = msg,
                 OriginName = this.Config.ProcessName,
                 Data = null,
-                Status = ProcessMessageStatus.OK,
+                Status = MessageStatus.OK,
             });
         }
     }

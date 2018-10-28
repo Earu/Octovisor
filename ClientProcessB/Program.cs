@@ -14,7 +14,7 @@ namespace Octovisor.Tests.ClientProcessB
             OctovisorConfig config = new OctovisorConfig
             {
                 ProcessName = "ProcessB",
-                ServerAddress = Dns.GetHostName(),
+                ServerAddress = "127.0.0.1",
                 ServerPort = 1100,
             };
 
