@@ -8,23 +8,26 @@ namespace Octovisor.Models
     {
         public const int BufferSize = 256;
 
-        public Socket WorkSocket { get; }
-        public byte[] Buffer { get; }
-        public StringBuilder Builder { get; }
-        public string Identifier { get; set; }
-        public bool IsDisposed { get; private set; }
+        public Socket        WorkSocket   { get; }
+        public byte[]        Buffer       { get; }
+        public StringBuilder Builder      { get; }
+        public string        Identifier   { get; set; }
+        public bool          IsDisposed   { get; private set; }
+        public int           ParsingDepth { get; set; }
 
         public StateObject(Socket socket)
         {
-            this.IsDisposed = false;
-            this.WorkSocket = socket;
-            this.Buffer = new byte[BufferSize];
-            this.Builder = new StringBuilder();
+            this.ParsingDepth = 0;
+            this.IsDisposed   = false;
+            this.WorkSocket   = socket;
+            this.Buffer       = new byte[BufferSize];
+            this.Builder      = new StringBuilder();
         }
 
         public void Dispose()
         {
             this.IsDisposed = true;
+            this.WorkSocket.Shutdown(SocketShutdown.Both);
             this.WorkSocket.Close();
         }
     }

@@ -3,12 +3,15 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using Octovisor.Models;
 
 namespace Octovisor.Client
 {
     public class OctovisorClient
     {
+        private static readonly string MessageFinalizer = "__END__";
+
         public event Action<Exception> OnError;
         public event Action<string> Log;
 
@@ -31,37 +34,33 @@ namespace Octovisor.Client
             this.OnConnectDone = new ManualResetEvent(false);
             this.OnSendDone    = new ManualResetEvent(false);
             this.OnReceiveDone = new ManualResetEvent(false);
-
-            this.Connect();
         }
 
         private void CallErrorEvent(Exception e) => this.OnError?.Invoke(e);
         private void CallLogEvent(string log) => this.Log?.Invoke(log);
 
         /// <summary>
-        /// This is called into the constructor so do not use it again unless you get disconnected
+        /// Connects to the remote octovisor server
         /// </summary>
-        public void Connect()
-        {
-            Thread thread = new Thread(this.InternalConnect);
-            thread.Start();
-        }
+        public async Task Connect()
+            => await this.InternalConnect().ConfigureAwait(false);
 
-        private void InternalConnect()
+        private async Task InternalConnect()
         {
+            TaskCompletionSource<bool> tcs = new TaskCompletionSource<bool>();
             try
             {
                 IPHostEntry hostinfo = Dns.GetHostEntry(this.Config.ServerAddress);
                 IPAddress ipadr      = hostinfo.AddressList[0];
                 IPEndPoint endpoint  = new IPEndPoint(ipadr, this.Config.ServerPort);
-
+                
                 this.Client = new Socket(ipadr.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-                this.Client.BeginConnect(endpoint, this.ConnectCallback, this.Client);
+                this.Client.BeginConnect(endpoint, res => {
+                    this.ConnectCallback(res);
+                    tcs.SetResult(true);
+                    this.IsConnected = true;
+                }, this.Client);
                 this.OnConnectDone.WaitOne();
-
-                this.IsConnected = true;
-
-                this.RegisterOnServer();
             }
             catch(Exception e)
             {
@@ -69,12 +68,18 @@ namespace Octovisor.Client
                 this.CallErrorEvent(e);
             }
 
-            this.StartReceiving();
+            await tcs.Task;
+
+            if(this.IsConnected)
+            {
+                await this.RegisterOnServer();
+                this.StartReceiving();
+            }
         }
 
-        private void RegisterOnServer()
+        private async Task RegisterOnServer()
         {
-            this.Send(new Message
+            await this.Send(new Message
             {
                 OriginName = this.Config.ProcessName,
                 TargetName = "SERVER",
@@ -86,9 +91,9 @@ namespace Octovisor.Client
             this.CallLogEvent("Registering on server");
         }
 
-        private void EndOnServer()
+        private async Task EndOnServer()
         {
-            this.Send(new Message
+            await this.Send(new Message
             {
                 OriginName = this.Config.ProcessName,
                 TargetName = "SERVER",
@@ -117,8 +122,6 @@ namespace Octovisor.Client
 
         private void StartReceiving()
         {
-            if (!this.IsConnected) return;
-
             this.CallLogEvent("Beginning receiving from server");
 
             try
@@ -145,7 +148,7 @@ namespace Octovisor.Client
                 if (bytesread > 0)
                 {
                     string data = Encoding.UTF8.GetString(state.Buffer, 0, bytesread);
-                    this.CallLogEvent($"Received {bytesread} bytes.\nData: {data}");
+                    this.CallLogEvent($"Received {bytesread} bytes");
 
                     client.BeginReceive(state.Buffer, 0, StateObject.BufferSize, 0, this.ReceiveCallback, state);
                 }
@@ -160,27 +163,32 @@ namespace Octovisor.Client
             }
         }
 
-        private void Send(Message msg,Action<IAsyncResult> callback=null)
+        private Task Send(Message msg)
         {
-            if (!this.IsConnected) return;
+            if (!this.IsConnected) return Task.CompletedTask;
 
+            TaskCompletionSource<bool> tcs = new TaskCompletionSource<bool>();
             try
             {
                 string data = msg.Serialize();
+                data += MessageFinalizer;
                 byte[] bytedata = Encoding.UTF8.GetBytes(data);
 
-                this.CallLogEvent($"Sending {data.Length} bytes.\nData: {data}");
+                this.CallLogEvent($"Sending {data.Length} bytes");
                 this.Client.BeginSend(bytedata, 0, bytedata.Length, 0, res =>
                 {
                     this.SendCallback(res);
-                    callback?.Invoke(res);
+                    tcs.SetResult(true);
                 }, this.Client);
                 this.OnSendDone.WaitOne();
             }
             catch(Exception e)
             {
                 this.CallErrorEvent(e);
+                tcs.SetException(e);
             }
+
+            return tcs.Task;
         }
 
         private void SendCallback(IAsyncResult ar)
@@ -198,9 +206,9 @@ namespace Octovisor.Client
             }
         }
 
-        public void SendGarbage(string proc,string msg)
+        public async Task SendGarbage(string proc,string msg)
         {
-            this.Send(new Message
+            await this.Send(new Message
             {
                 ID = 666,
                 TargetName = proc,

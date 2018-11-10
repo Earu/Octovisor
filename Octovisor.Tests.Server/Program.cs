@@ -12,7 +12,7 @@ namespace Octovisor.Tests.Server
 
             ServerConfig config = new ServerConfig
             {
-                Token = "MEMES",
+                Token = "MetaCosntructIsCool",
                 ServerAddress = "127.0.0.1",
                 ServerPort = 1100,
                 MaximumProcesses = 255,
