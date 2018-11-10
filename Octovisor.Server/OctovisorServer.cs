@@ -16,7 +16,8 @@ namespace Octovisor.Server
 
         private readonly ServerConfig Config;
         private readonly ManualResetEvent ResetEvent;
-        private readonly Dictionary<string, StateObject> States;
+        private readonly Dictionary<EndPoint, StateObject> States;
+        private readonly Dictionary<string, EndPoint> EndpointLookup;
 
         /// <summary>
         /// Gets the logger.
@@ -32,11 +33,12 @@ namespace Octovisor.Server
             if (!config.IsValid())
                 throw new Exception("Invalid Octovisor server configuration");
 
-            this.Config                = config;
-            this.ShouldRun             = true;
-            this.ResetEvent            = new ManualResetEvent(false);
-            this.Logger                = new OctovisorLogger();
-            this.States                = new Dictionary<string, StateObject>();
+            this.Config         = config;
+            this.ShouldRun      = true;
+            this.ResetEvent     = new ManualResetEvent(false);
+            this.Logger         = new OctovisorLogger();
+            this.States         = new Dictionary<EndPoint, StateObject>();
+            this.EndpointLookup = new Dictionary<string, EndPoint>();
         }
 
         /// <summary>
@@ -71,8 +73,8 @@ namespace Octovisor.Server
             try
             {
                 IPHostEntry hostinfo = Dns.GetHostEntry(this.Config.ServerAddress);
-                IPAddress ipadr = hostinfo.AddressList[0];
-                IPEndPoint endpoint = new IPEndPoint(ipadr, this.Config.ServerPort);
+                IPAddress ipadr      = hostinfo.AddressList[0];
+                IPEndPoint endpoint  = new IPEndPoint(ipadr, this.Config.ServerPort);
 
                 this.Listener = new Socket(SocketType.Stream,ProtocolType.Tcp);
                 this.Listener.Bind(endpoint);
@@ -87,8 +89,8 @@ namespace Octovisor.Server
                     this.ResetEvent.WaitOne();
                 }
 
-                foreach (KeyValuePair<string, StateObject> kv in this.States)
-                    this.EndRemoteProcess(kv.Key,this.Config.Token);
+                foreach (KeyValuePair<string, EndPoint> kv in this.EndpointLookup)
+                    this.EndRemoteProcess(kv.Key, this.Config.Token);
 
                 this.Listener.Shutdown(SocketShutdown.Both);
                 this.Listener.Close();
@@ -100,12 +102,26 @@ namespace Octovisor.Server
             }
         }
 
+        private void ProcessSocketException(StateObject state,SocketException e)
+        {
+            //10054
+            if (e.SocketErrorCode == SocketError.ConnectionReset)
+            {
+                this.Logger.Warn($"Process {state.Identifier} was forcibly closed");
+                this.EndRemoteProcess(state.WorkSocket.RemoteEndPoint);
+            }
+            else
+            {
+                this.Logger.Error(e.ToString());
+            }
+        }
+
         private void AcceptCallback(IAsyncResult ar)
         {
             this.ResetEvent.Set();
 
             Socket listener = (Socket)ar.AsyncState;
-            Socket handler = listener.EndAccept(ar);
+            Socket handler  = listener.EndAccept(ar);
 
             StateObject state = new StateObject(handler);
 
@@ -113,6 +129,10 @@ namespace Octovisor.Server
             {
                 state.WorkSocket.BeginReceive(state.Buffer, 0,
                     StateObject.BufferSize, SocketFlags.None, this.ReadCallback, state);
+            }
+            catch(SocketException e)
+            {
+                this.ProcessSocketException(state, e);
             }
             catch(Exception e)
             {
@@ -127,31 +147,43 @@ namespace Octovisor.Server
             StateObject state = (StateObject)ar.AsyncState;
             Socket handler = state.WorkSocket;
 
-            int bytesread = handler.EndReceive(ar);
-
-            if (bytesread > 0)
+            try
             {
-                state.Builder.Clear();
-                state.Builder.Append(Encoding.UTF8.GetString(state.Buffer, 0, bytesread));
-                content = state.Builder.ToString();
+                int bytesread = handler.EndReceive(ar);
 
-                Message msg = Message.Deserialize(content);
-                switch (msg.Identifier)
+                if (bytesread > 0)
                 {
-                    case "INTERNAL_OCTOVISOR_PROCESS_INIT":
-                        this.RegisterRemoteProcess(msg.OriginName, state, msg.Data);
-                        break;
-                    case "INTERNAL_OCTOVISOR_PROCESS_END":
-                        this.EndRemoteProcess(msg.OriginName, msg.Data);
-                        break;
-                    default:
-                        this.DispatchMessage(msg);
-                        break;
-                }
+                    state.Builder.Clear();
+                    state.Builder.Append(Encoding.UTF8.GetString(state.Buffer, 0, bytesread));
+                    content = state.Builder.ToString();
 
-                // Wait again for incoming data
-                state.WorkSocket.BeginReceive(state.Buffer, 0, 
-                    StateObject.BufferSize, SocketFlags.None, this.ReadCallback, state);
+                    Message msg = Message.Deserialize(content);
+                    switch (msg.Identifier)
+                    {
+                        case "INTERNAL_OCTOVISOR_PROCESS_INIT":
+                            this.RegisterRemoteProcess(msg.OriginName, state, msg.Data);
+                            break;
+                        case "INTERNAL_OCTOVISOR_PROCESS_END":
+                            this.EndRemoteProcess(msg.OriginName, msg.Data);
+                            break;
+                        default:
+                            this.DispatchMessage(msg);
+                            break;
+                    }
+
+                    // Wait again for incoming data
+                    if (!state.IsDisposed)
+                        state.WorkSocket.BeginReceive(state.Buffer, 0,
+                            StateObject.BufferSize, SocketFlags.None, this.ReadCallback, state);
+                }
+            }
+            catch (SocketException e)
+            {
+                this.ProcessSocketException(state, e);
+            }
+            catch (Exception e)
+            {
+                this.Logger.Error(e.ToString());
             }
         }
 
@@ -164,10 +196,13 @@ namespace Octovisor.Server
 
                 handler.BeginSend(bytedata, 0, bytedata.Length, 0, this.SendCallback, handler);
             }
-            catch(SocketException)
+            catch (SocketException e)
             {
-                this.Logger.Error($"The remote process ({msg.TargetName}) is not available because it was forcibly closed.");
-                this.EndRemoteProcess(msg.TargetName,msg.Data);
+                this.ProcessSocketException(state, e);
+            }
+            catch (Exception e)
+            {
+                this.Logger.Error(e.ToString());
             }
         }
 
@@ -186,52 +221,79 @@ namespace Octovisor.Server
 
         private void RegisterRemoteProcess(string name,StateObject state, string token)
         {
-            if (this.States.ContainsKey(name))
+            if (this.EndpointLookup.ContainsKey(name))
                 this.Logger.Warn($"Cannot register remote process with an existing name ({name}). Discarding.");
             else if (this.States.Count >= this.Config.MaximumProcesses)
-                this.Logger.Error($"Could not register remote process {name}. Exceeding the maximum amount of remote processes.");
+                this.Logger.Error($"Could not register a remote process ({name}). Exceeding the maximum amount of remote processes.");
             else
             {
-                this.States.Add(name, state);
-                this.Logger.Write(ConsoleColor.Yellow, "Process", $"Registering new remote process | {name} @ {state.WorkSocket.RemoteEndPoint}");
+                EndPoint endpoint = state.WorkSocket.RemoteEndPoint;
+                state.Identifier = name;
+                this.States.Add(endpoint, state);
+                this.EndpointLookup.Add(name, endpoint);
+                this.Logger.Write(ConsoleColor.Yellow, "Process", $"Registering new remote process | {name} @ {endpoint}");
             }
         }
 
         private void EndRemoteProcess(string name, string token)
         {
             if (token != this.Config.Token)
-                this.Logger.Warn($"Attempt to end a remote process with invalid token.");
-            else if (!this.States.ContainsKey(name))
+                this.Logger.Warn($"Attempt to end a remote process ({name}) with an invalid token.");
+            else if (!this.EndpointLookup.ContainsKey(name))
                 this.Logger.Warn($"Attempt to end a non-existing remote process ({name}). Discarding.");
             else
             {
-                StateObject state = this.States[name];
+                EndPoint endpoint = this.EndpointLookup[name];
+                StateObject state = this.States[endpoint];
                 state.WorkSocket.Shutdown(SocketShutdown.Both);
-                state.WorkSocket.Close();
-                this.States.Remove(name);
-                this.Logger.Write(ConsoleColor.Yellow, "Process", $"Ending remote process | {name} @ {state.WorkSocket.RemoteEndPoint}");
+                state.Dispose();
+                this.States.Remove(endpoint);
+                this.EndpointLookup.Remove(name);
+
+                this.Logger.Write(ConsoleColor.Yellow, "Process", $"Ending remote process | {name} @ {endpoint}");
+            }
+        }
+
+        // When client closes brutally
+        private void EndRemoteProcess(EndPoint endpoint)
+        {
+            if(this.States.ContainsKey(endpoint))
+            {
+                StateObject state = this.States[endpoint];
+                state.WorkSocket.Shutdown(SocketShutdown.Both);
+                state.Dispose();
+                this.States.Remove(endpoint);
+                this.EndpointLookup.Remove(state.Identifier);
+
+                this.Logger.Write(ConsoleColor.Yellow, "Process", $"Ending remote process | {state.Identifier} @ {endpoint}");
             }
         }
 
         private void DispatchMessage(Message msg)
         {
-            if (this.States.ContainsKey(msg.TargetName) && this.States.ContainsKey(msg.OriginName))
+            if (this.EndpointLookup.ContainsKey(msg.TargetName) && this.EndpointLookup.ContainsKey(msg.OriginName))
             {
-                StateObject state = this.States[msg.TargetName];
+                EndPoint endpoint = this.EndpointLookup[msg.TargetName];
+                StateObject state = this.States[endpoint];
+
                 this.Send(state,msg);
                 this.Logger.Write(ConsoleColor.Green, "Message", $"Forwarded {msg.Data.Length} bytes " +
                     $"| (ID: {msg.Identifier}) {msg.OriginName} -> {msg.TargetName}");
             }
             else
             {
-                if (!this.States.ContainsKey(msg.OriginName))
+                if (!this.EndpointLookup.ContainsKey(msg.OriginName))
                 {
-                    this.Logger.Warn($"Unknown remote process {msg.OriginName} tried to forward {msg.Data.Length} bytes to {msg.TargetName}");
+                    this.Logger.Warn($"Unknown remote process {msg.OriginName} tried to forward {msg.Length} bytes to {msg.TargetName}");
                 }
                 else
                 {
-                    this.Logger.Warn($"No such remote process ({msg.TargetName}). Sending message back.");
-                    StateObject state = this.States[msg.OriginName];
+                    this.Logger.Warn($"{msg.OriginName} tried to forward {msg.Length} bytes to unknown remote process {msg.TargetName}");
+
+                    EndPoint endpoint = this.EndpointLookup[msg.OriginName];
+                    StateObject state = this.States[endpoint];
+
+                    msg.Status = MessageStatus.ProcessNotFound;
                     this.Send(state, msg);
                 }
             }
