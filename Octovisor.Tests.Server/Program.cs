@@ -1,19 +1,21 @@
-﻿using System;
-using Octovisor.Models;
+﻿using Octovisor.Models;
+using Octovisor.Server;
+using System;
 
-namespace Octovisor.Server
+namespace Octovisor.Tests.Server
 {
     class Program
     {
         static void Main()
         {
-            Console.Title = "OctovisorServer";
+            Console.Title = "Octovisor Server";
 
             ServerConfig config = new ServerConfig
             {
+                Token = "MEMES",
                 ServerAddress = "127.0.0.1",
                 ServerPort = 1100,
-                Token = "MEMES"
+                MaximumProcesses = 255,
             };
 
             OctovisorServer server = new OctovisorServer(config);

@@ -10,6 +10,7 @@ namespace Octovisor.Models
         TargetError           = 2,
         NetworkError          = 3,
         MalformedMessageError = 4,
+        ProcessNotFound       = 5,
     }
 
     public class Message
@@ -31,6 +32,9 @@ namespace Octovisor.Models
 
         [JsonProperty(PropertyName = "status")]
         public MessageStatus Status { get; set; }
+
+        [JsonIgnore]
+        public int Length { get => this.Data != null ? this.Data.Length : 0; }
 
         public static Message Deserialize(string json)
         {
