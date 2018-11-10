@@ -52,11 +52,11 @@ namespace Octovisor.Client
             try
             {
                 IPHostEntry hostinfo = Dns.GetHostEntry(this.Config.ServerAddress);
-                IPAddress ipadr = hostinfo.AddressList[0];
-                IPEndPoint endpoint = new IPEndPoint(ipadr, this.Config.ServerPort);
+                IPAddress ipadr      = hostinfo.AddressList[0];
+                IPEndPoint endpoint  = new IPEndPoint(ipadr, this.Config.ServerPort);
 
                 this.Client = new Socket(ipadr.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-                this.Client.BeginConnect(endpoint, new AsyncCallback(this.ConnectCallback), this.Client);
+                this.Client.BeginConnect(endpoint, this.ConnectCallback, this.Client);
                 this.OnConnectDone.WaitOne();
 
                 this.IsConnected = true;
@@ -125,7 +125,7 @@ namespace Octovisor.Client
             {
                 StateObject state = new StateObject(this.Client);
 
-                this.Client.BeginReceive(state.Buffer, 0, StateObject.BufferSize, 0, new AsyncCallback(this.ReceiveCallback), state);
+                this.Client.BeginReceive(state.Buffer, 0, StateObject.BufferSize, 0, this.ReceiveCallback, state);
             }
             catch(Exception e) 
             {
@@ -147,7 +147,7 @@ namespace Octovisor.Client
                     string data = Encoding.UTF8.GetString(state.Buffer, 0, bytesread);
                     this.CallLogEvent($"Received {bytesread} bytes.\nData: {data}");
 
-                    client.BeginReceive(state.Buffer, 0, StateObject.BufferSize, 0, new AsyncCallback(this.ReceiveCallback), state);
+                    client.BeginReceive(state.Buffer, 0, StateObject.BufferSize, 0, this.ReceiveCallback, state);
                 }
                 else
                 {
@@ -164,15 +164,23 @@ namespace Octovisor.Client
         {
             if (!this.IsConnected) return;
 
-            string data = msg.Serialize();
-            byte[] bytedata = Encoding.UTF8.GetBytes(data);
+            try
+            {
+                string data = msg.Serialize();
+                byte[] bytedata = Encoding.UTF8.GetBytes(data);
 
-            this.CallLogEvent($"Sending {data.Length} bytes.\nData: {data}");
-            this.Client.BeginSend(bytedata, 0, bytedata.Length, 0, new AsyncCallback(res => {
-                this.SendCallback(res);
-                callback?.Invoke(res);
-            }), this.Client);
-            this.OnSendDone.WaitOne();
+                this.CallLogEvent($"Sending {data.Length} bytes.\nData: {data}");
+                this.Client.BeginSend(bytedata, 0, bytedata.Length, 0, res =>
+                {
+                    this.SendCallback(res);
+                    callback?.Invoke(res);
+                }, this.Client);
+                this.OnSendDone.WaitOne();
+            }
+            catch(Exception e)
+            {
+                this.CallErrorEvent(e);
+            }
         }
 
         private void SendCallback(IAsyncResult ar)

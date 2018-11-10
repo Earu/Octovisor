@@ -3,17 +3,17 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.28010.2026
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Octovisor.Server", "Octovisor.Server\Octovisor.Server.csproj", "{6D0F9A36-0301-41BC-A1DD-5C04C53954F2}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Octovisor.Server", "Octovisor.Server\Octovisor.Server.csproj", "{6D0F9A36-0301-41BC-A1DD-5C04C53954F2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Octovisor.Client", "Octovisor.Client\Octovisor.Client.csproj", "{1B6F2BDA-033B-49EE-8CDC-63B613D09D51}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Octovisor.Client", "Octovisor.Client\Octovisor.Client.csproj", "{1B6F2BDA-033B-49EE-8CDC-63B613D09D51}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Octovisor.Tests", "Octovisor.Tests", "{BC842B31-F7ED-45FA-B632-7793287F1F9B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Octovisor.Models", "Octovisor.Models\Octovisor.Models.csproj", "{465E4A56-039F-4539-B320-68AD4F3ECE1F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClientProcessA", "ClientProcessA\ClientProcessA.csproj", "{A968038A-5E05-4328-B1C0-6DB06E79DAED}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Octovisor.Tests.Server", "Octovisor.Tests.Server\Octovisor.Tests.Server.csproj", "{9349421B-39A3-42B3-8F11-9C7CBA7666D8}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClientProcessB", "ClientProcessB\ClientProcessB.csproj", "{1012E17D-0FFA-489C-877F-8602B5E28697}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Octovisor.Tests.Client", "Octovisor.Tests.Client\Octovisor.Tests.Client.csproj", "{77570E73-C2BA-40CE-AA58-05815FB63C9E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Octovisor.Models", "Octovisor.Models\Octovisor.Models.csproj", "{465E4A56-039F-4539-B320-68AD4F3ECE1F}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Octovisor.Tests", "Octovisor.Tests", "{FD0C5B9B-F0ED-4492-985C-C79796B10A32}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -29,25 +29,25 @@ Global
 		{1B6F2BDA-033B-49EE-8CDC-63B613D09D51}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1B6F2BDA-033B-49EE-8CDC-63B613D09D51}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1B6F2BDA-033B-49EE-8CDC-63B613D09D51}.Release|Any CPU.Build.0 = Release|Any CPU
-		{A968038A-5E05-4328-B1C0-6DB06E79DAED}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{A968038A-5E05-4328-B1C0-6DB06E79DAED}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{A968038A-5E05-4328-B1C0-6DB06E79DAED}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{A968038A-5E05-4328-B1C0-6DB06E79DAED}.Release|Any CPU.Build.0 = Release|Any CPU
-		{1012E17D-0FFA-489C-877F-8602B5E28697}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{1012E17D-0FFA-489C-877F-8602B5E28697}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{1012E17D-0FFA-489C-877F-8602B5E28697}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{1012E17D-0FFA-489C-877F-8602B5E28697}.Release|Any CPU.Build.0 = Release|Any CPU
 		{465E4A56-039F-4539-B320-68AD4F3ECE1F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{465E4A56-039F-4539-B320-68AD4F3ECE1F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{465E4A56-039F-4539-B320-68AD4F3ECE1F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{465E4A56-039F-4539-B320-68AD4F3ECE1F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9349421B-39A3-42B3-8F11-9C7CBA7666D8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9349421B-39A3-42B3-8F11-9C7CBA7666D8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9349421B-39A3-42B3-8F11-9C7CBA7666D8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9349421B-39A3-42B3-8F11-9C7CBA7666D8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{77570E73-C2BA-40CE-AA58-05815FB63C9E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{77570E73-C2BA-40CE-AA58-05815FB63C9E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{77570E73-C2BA-40CE-AA58-05815FB63C9E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{77570E73-C2BA-40CE-AA58-05815FB63C9E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
-		{A968038A-5E05-4328-B1C0-6DB06E79DAED} = {BC842B31-F7ED-45FA-B632-7793287F1F9B}
-		{1012E17D-0FFA-489C-877F-8602B5E28697} = {BC842B31-F7ED-45FA-B632-7793287F1F9B}
+		{9349421B-39A3-42B3-8F11-9C7CBA7666D8} = {FD0C5B9B-F0ED-4492-985C-C79796B10A32}
+		{77570E73-C2BA-40CE-AA58-05815FB63C9E} = {FD0C5B9B-F0ED-4492-985C-C79796B10A32}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {3AC2A292-B5CF-4304-A3DF-5FF29DC4D126}

@@ -7,6 +7,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Octovisor.Client\Octovisor.Client.csproj" />
+    <ProjectReference Include="..\Octovisor.Server\Octovisor.Server.csproj" />
   </ItemGroup>
 
 </Project>
