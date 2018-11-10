@@ -10,6 +10,8 @@ namespace Octovisor.Server
 {
     public class OctovisorServer
     {
+        private static readonly string MessageFinalizer = "__END__";
+
         private bool ShouldRun;
         private Socket Listener;
         private Thread Thread;
@@ -80,7 +82,8 @@ namespace Octovisor.Server
                 this.Listener.Bind(endpoint);
                 this.Listener.Listen(this.Config.MaximumProcesses);
 
-                this.Logger.Write(ConsoleColor.Magenta, "Server", "Waiting for a connection...");
+                this.Logger.Write(ConsoleColor.Magenta, "Server", 
+                    $"Listening for connections at {this.Config.ServerAddress}:{this.Config.ServerPort}...");
 
                 while (this.ShouldRun)
                 {
@@ -142,8 +145,6 @@ namespace Octovisor.Server
 
         private void ReadCallback(IAsyncResult ar)
         {
-            string content = string.Empty;
-
             StateObject state = (StateObject)ar.AsyncState;
             Socket handler = state.WorkSocket;
 
@@ -153,22 +154,37 @@ namespace Octovisor.Server
 
                 if (bytesread > 0)
                 {
-                    state.Builder.Clear();
-                    state.Builder.Append(Encoding.UTF8.GetString(state.Buffer, 0, bytesread));
-                    content = state.Builder.ToString();
-
-                    Message msg = Message.Deserialize(content);
-                    switch (msg.Identifier)
+                    string content = Encoding.UTF8.GetString(state.Buffer, 0, bytesread);
+                    string fullsmsg = null;
+                    foreach(char c in content)
                     {
-                        case "INTERNAL_OCTOVISOR_PROCESS_INIT":
-                            this.RegisterRemoteProcess(msg.OriginName, state, msg.Data);
-                            break;
-                        case "INTERNAL_OCTOVISOR_PROCESS_END":
-                            this.EndRemoteProcess(msg.OriginName, msg.Data);
-                            break;
-                        default:
-                            this.DispatchMessage(msg);
-                            break;
+                        state.Builder.Append(c);
+
+                        string current = state.Builder.ToString();
+                        int endlen = MessageFinalizer.Length;
+                        if (current.Length >= endlen && current.Substring(current.Length - endlen,endlen) == MessageFinalizer)
+                        {
+                            fullsmsg = state.Builder.ToString();
+                            state.Builder.Clear();
+                        }
+                    }
+
+                    if(!string.IsNullOrWhiteSpace(fullsmsg))
+                    {
+                        fullsmsg = fullsmsg.Substring(0, fullsmsg.Length - MessageFinalizer.Length);
+                        Message msg = Message.Deserialize(fullsmsg);
+                        switch (msg.Identifier)
+                        {
+                            case "INTERNAL_OCTOVISOR_PROCESS_INIT":
+                                this.RegisterRemoteProcess(msg.OriginName, state, msg.Data);
+                                break;
+                            case "INTERNAL_OCTOVISOR_PROCESS_END":
+                                this.EndRemoteProcess(msg.OriginName, msg.Data);
+                                break;
+                            default:
+                                this.DispatchMessage(msg);
+                                break;
+                        }
                     }
 
                     // Wait again for incoming data
@@ -192,7 +208,7 @@ namespace Octovisor.Server
             try
             {
                 Socket handler = state.WorkSocket;
-                byte[] bytedata = Encoding.UTF8.GetBytes(msg.Serialize());
+                byte[] bytedata = Encoding.UTF8.GetBytes(msg.Serialize() + MessageFinalizer);
 
                 handler.BeginSend(bytedata, 0, bytedata.Length, 0, this.SendCallback, handler);
             }
@@ -245,7 +261,6 @@ namespace Octovisor.Server
             {
                 EndPoint endpoint = this.EndpointLookup[name];
                 StateObject state = this.States[endpoint];
-                state.WorkSocket.Shutdown(SocketShutdown.Both);
                 state.Dispose();
                 this.States.Remove(endpoint);
                 this.EndpointLookup.Remove(name);
@@ -260,7 +275,6 @@ namespace Octovisor.Server
             if(this.States.ContainsKey(endpoint))
             {
                 StateObject state = this.States[endpoint];
-                state.WorkSocket.Shutdown(SocketShutdown.Both);
                 state.Dispose();
                 this.States.Remove(endpoint);
                 this.EndpointLookup.Remove(state.Identifier);
@@ -269,32 +283,44 @@ namespace Octovisor.Server
             }
         }
 
+        private void ForwardMessage(Message msg)
+        {
+            EndPoint endpoint = this.EndpointLookup[msg.TargetName];
+            StateObject state = this.States[endpoint];
+
+            this.Send(state, msg);
+            this.Logger.Write(ConsoleColor.Green, "Message", $"Forwarded {msg.Data.Length} bytes " +
+                $"| (ID: {msg.Identifier}) {msg.OriginName} -> {msg.TargetName}");
+        }
+
+        private void SendbackMessage(Message msg,MessageStatus status,string data=null)
+        {
+            EndPoint endpoint = this.EndpointLookup[msg.OriginName];
+            StateObject state = this.States[endpoint];
+
+            msg.Data = data ?? msg.Data;
+            msg.Status = status;
+            this.Send(state, msg);
+        }
+
         private void DispatchMessage(Message msg)
         {
-            if (this.EndpointLookup.ContainsKey(msg.TargetName) && this.EndpointLookup.ContainsKey(msg.OriginName))
+            if (msg.Status == MessageStatus.MalformedMessageError)
             {
-                EndPoint endpoint = this.EndpointLookup[msg.TargetName];
-                StateObject state = this.States[endpoint];
-
-                this.Send(state,msg);
-                this.Logger.Write(ConsoleColor.Green, "Message", $"Forwarded {msg.Data.Length} bytes " +
-                    $"| (ID: {msg.Identifier}) {msg.OriginName} -> {msg.TargetName}");
+                this.Logger.Warn($"Malformed message received!\n{msg.Data}");
+                return;
             }
+
+            if (this.EndpointLookup.ContainsKey(msg.TargetName) && this.EndpointLookup.ContainsKey(msg.OriginName))
+                this.ForwardMessage(msg);
             else
             {
                 if (!this.EndpointLookup.ContainsKey(msg.OriginName))
-                {
                     this.Logger.Warn($"Unknown remote process {msg.OriginName} tried to forward {msg.Length} bytes to {msg.TargetName}");
-                }
                 else
                 {
                     this.Logger.Warn($"{msg.OriginName} tried to forward {msg.Length} bytes to unknown remote process {msg.TargetName}");
-
-                    EndPoint endpoint = this.EndpointLookup[msg.OriginName];
-                    StateObject state = this.States[endpoint];
-
-                    msg.Status = MessageStatus.ProcessNotFound;
-                    this.Send(state, msg);
+                    this.SendbackMessage(msg, MessageStatus.ProcessNotFound);
                 }
             }
         }

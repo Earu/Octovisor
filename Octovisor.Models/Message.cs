@@ -50,7 +50,7 @@ namespace Octovisor.Models
                     OriginName = "UNKNOWN_ORIGIN",
                     TargetName = "UNKNOWN_TARGET",
                     Identifier = "UNKNOWN",
-                    Data = e.ToString(),
+                    Data = json,
                     Status = MessageStatus.MalformedMessageError,
                 };
             }

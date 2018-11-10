@@ -12,9 +12,9 @@ namespace Octovisor.Tests.Client
 
             ClientConfig config = new ClientConfig
             {
-                Token = "MEMES",
-                ServerAddress = "127.0.0.1",
-                ServerPort = 1100,
+                Token = "MetaCosntructIsCool",
+                ServerAddress = "threekelv.in",
+                ServerPort = 6558,
                 ProcessName = "TestProcess",
             };
 
@@ -22,10 +22,14 @@ namespace Octovisor.Tests.Client
             client.OnError += e => Console.WriteLine(e);
             client.Log += log => Console.WriteLine(log);
 
-            while (!client.IsConnected) ;
+            client.Connect().Wait();
 
-            client.SendGarbage("TargetProcess", "Test");
+            for (uint i = 0; i < 100; i++)
+            {
+                client.SendGarbage("TargetProcess", "Test").Wait();
+            }
 
+            Console.Read();
         }
     }
 }
