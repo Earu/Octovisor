@@ -84,7 +84,7 @@ namespace Octovisor.Client
                 OriginName = this.Config.ProcessName,
                 TargetName = "SERVER",
                 Identifier = "INTERNAL_OCTOVISOR_PROCESS_INIT",
-                Data = null,
+                Data = this.Config.Token,
                 Status = MessageStatus.OK,
             });
 
@@ -98,7 +98,7 @@ namespace Octovisor.Client
                 OriginName = this.Config.ProcessName,
                 TargetName = "SERVER",
                 Identifier = "INTERNAL_OCTOVISOR_PROCESS_END",
-                Data = null,
+                Data = this.Config.Token,
                 Status = MessageStatus.OK,
             });
 

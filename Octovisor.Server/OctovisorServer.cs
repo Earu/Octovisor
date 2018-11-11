@@ -237,7 +237,9 @@ namespace Octovisor.Server
 
         private void RegisterRemoteProcess(string name,StateObject state, string token)
         {
-            if (this.EndpointLookup.ContainsKey(name))
+            if (token != this.Config.Token)
+                this.Logger.Warn($"Attempt to register a remote process ({name}) with an invalid token.");
+            else if (this.EndpointLookup.ContainsKey(name))
                 this.Logger.Warn($"Cannot register remote process with an existing name ({name}). Discarding.");
             else if (this.States.Count >= this.Config.MaximumProcesses)
                 this.Logger.Error($"Could not register a remote process ({name}). Exceeding the maximum amount of remote processes.");
