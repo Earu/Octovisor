@@ -13,7 +13,7 @@ namespace Octovisor.Tests.Client
             ClientConfig config = new ClientConfig
             {
                 Token = "MetaCosntructIsCool",
-                ServerAddress = "threekelv.in",
+                ServerAddress = "3kv.in",
                 ServerPort = 6558,
                 ProcessName = "TestProcess",
             };
@@ -24,10 +24,14 @@ namespace Octovisor.Tests.Client
 
             client.Connect().Wait();
 
-            for (uint i = 0; i < 100; i++)
+            client.Send(new Message
             {
-                client.SendGarbage("TargetProcess", "Test").Wait();
-            }
+                Identifier = "meme",
+                Data = null,
+                OriginName = config.ProcessName,
+                TargetName = "Meta1",
+                Status = MessageStatus.OK,
+            });
 
             Console.Read();
         }

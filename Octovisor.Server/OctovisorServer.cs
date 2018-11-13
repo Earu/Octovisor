@@ -78,7 +78,10 @@ namespace Octovisor.Server
                 IPAddress ipadr      = hostinfo.AddressList[0];
                 IPEndPoint endpoint  = new IPEndPoint(ipadr, this.Config.ServerPort);
 
-                this.Listener = new Socket(SocketType.Stream,ProtocolType.Tcp);
+                this.Listener = new Socket(SocketType.Stream, ProtocolType.Tcp)
+                {
+                    DualMode = true
+                };
                 this.Listener.Bind(endpoint);
                 this.Listener.Listen(this.Config.MaximumProcesses);
 
@@ -143,6 +146,26 @@ namespace Octovisor.Server
             }
         }
 
+        private string HandleReceivedData(StateObject state, int bytesread)
+        {
+            string content = Encoding.UTF8.GetString(state.Buffer, 0, bytesread);
+            string fullsmsg = null;
+            foreach (char c in content)
+            {
+                state.Builder.Append(c);
+
+                string current = state.Builder.ToString();
+                int endlen = MessageFinalizer.Length;
+                if (current.Length >= endlen && current.Substring(current.Length - endlen, endlen) == MessageFinalizer)
+                {
+                    fullsmsg = state.Builder.ToString();
+                    state.Builder.Clear();
+                }
+            }
+
+            return fullsmsg;
+        }
+
         private void ReadCallback(IAsyncResult ar)
         {
             StateObject state = (StateObject)ar.AsyncState;
@@ -154,20 +177,7 @@ namespace Octovisor.Server
 
                 if (bytesread > 0)
                 {
-                    string content = Encoding.UTF8.GetString(state.Buffer, 0, bytesread);
-                    string fullsmsg = null;
-                    foreach(char c in content)
-                    {
-                        state.Builder.Append(c);
-
-                        string current = state.Builder.ToString();
-                        int endlen = MessageFinalizer.Length;
-                        if (current.Length >= endlen && current.Substring(current.Length - endlen,endlen) == MessageFinalizer)
-                        {
-                            fullsmsg = state.Builder.ToString();
-                            state.Builder.Clear();
-                        }
-                    }
+                    string fullsmsg = this.HandleReceivedData(state, bytesread);
 
                     if(!string.IsNullOrWhiteSpace(fullsmsg))
                     {
@@ -209,8 +219,8 @@ namespace Octovisor.Server
             {
                 Socket handler = state.WorkSocket;
                 byte[] bytedata = Encoding.UTF8.GetBytes(msg.Serialize() + MessageFinalizer);
-
-                handler.BeginSend(bytedata, 0, bytedata.Length, 0, this.SendCallback, handler);
+                handler.Send(bytedata,0,bytedata.Length,SocketFlags.None,out SocketError code);
+                this.Logger.Debug($"{code}");
             }
             catch (SocketException e)
             {
@@ -219,19 +229,6 @@ namespace Octovisor.Server
             catch (Exception e)
             {
                 this.Logger.Error(e.ToString());
-            }
-        }
-
-        private void SendCallback(IAsyncResult ar)
-        {
-            try
-            {
-                Socket handler = (Socket)ar.AsyncState;
-                handler.EndSend(ar);
-            }
-            catch (Exception e)
-            {
-                this.Logger.Error($"Something went wrong when sending data\n{e}");
             }
         }
 
@@ -291,7 +288,7 @@ namespace Octovisor.Server
             StateObject state = this.States[endpoint];
 
             this.Send(state, msg);
-            this.Logger.Write(ConsoleColor.Green, "Message", $"Forwarded {msg.Data.Length} bytes " +
+            this.Logger.Write(ConsoleColor.Green, "Message", $"Forwarded {msg.Length} bytes " +
                 $"| (ID: {msg.Identifier}) {msg.OriginName} -> {msg.TargetName}");
         }
 
