@@ -72,12 +72,12 @@ namespace Octovisor.Client
 
             if(this.IsConnected)
             {
-                await this.RegisterOnServer();
+                await this.Register();
                 this.StartReceiving();
             }
         }
 
-        private async Task RegisterOnServer()
+        private async Task Register()
         {
             await this.Send(new Message
             {
@@ -91,7 +91,7 @@ namespace Octovisor.Client
             this.CallLogEvent("Registering on server");
         }
 
-        private async Task EndOnServer()
+        private async Task Unregister()
         {
             await this.Send(new Message
             {
@@ -148,7 +148,7 @@ namespace Octovisor.Client
                 if (bytesread > 0)
                 {
                     string data = Encoding.UTF8.GetString(state.Buffer, 0, bytesread);
-                    this.CallLogEvent($"Received {bytesread} bytes");
+                    this.CallLogEvent($"Received {bytesread} bytes\n{data}");
 
                     client.BeginReceive(state.Buffer, 0, StateObject.BufferSize, 0, this.ReceiveCallback, state);
                 }
@@ -163,7 +163,7 @@ namespace Octovisor.Client
             }
         }
 
-        private Task Send(Message msg)
+        public Task Send(Message msg)
         {
             if (!this.IsConnected) return Task.CompletedTask;
 
@@ -174,7 +174,7 @@ namespace Octovisor.Client
                 data += MessageFinalizer;
                 byte[] bytedata = Encoding.UTF8.GetBytes(data);
 
-                this.CallLogEvent($"Sending {data.Length} bytes");
+                this.CallLogEvent($"Sending {data.Length} bytes\n{data}");
                 this.Client.BeginSend(bytedata, 0, bytedata.Length, 0, res =>
                 {
                     this.SendCallback(res);
@@ -204,19 +204,6 @@ namespace Octovisor.Client
             {
                 this.CallErrorEvent(e);
             }
-        }
-
-        public async Task SendGarbage(string proc,string msg)
-        {
-            await this.Send(new Message
-            {
-                ID = 666,
-                TargetName = proc,
-                Identifier = msg,
-                OriginName = this.Config.ProcessName,
-                Data = null,
-                Status = MessageStatus.OK,
-            });
         }
     }
 }
