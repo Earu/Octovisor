@@ -8,7 +8,7 @@ namespace Octovisor.Models
     {
         public const int BufferSize = 256;
 
-        public Socket        WorkSocket   { get; }
+        public Socket        WorkSocket   { get; set; }
         public byte[]        Buffer       { get; }
         public StringBuilder Builder      { get; }
         public string        Identifier   { get; set; }
