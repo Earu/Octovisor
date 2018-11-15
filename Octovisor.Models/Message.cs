@@ -5,12 +5,13 @@ namespace Octovisor.Models
 {
     public enum MessageStatus
     {
-        OK                    = 0,
-        ServerError           = 1,
-        TargetError           = 2,
-        NetworkError          = 3,
-        MalformedMessageError = 4,
-        ProcessNotFound       = 5,
+        DataRequest           = 0,
+        DataResponse          = 1,
+        ServerError           = 2,
+        TargetError           = 3,
+        NetworkError          = 4,
+        MalformedMessageError = 5,
+        ProcessNotFound       = 6,
     }
 
     public class Message
@@ -42,7 +43,7 @@ namespace Octovisor.Models
             {
                 return JsonConvert.DeserializeObject<Message>(json);
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 return new Message
                 {
