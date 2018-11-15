@@ -30,7 +30,7 @@ namespace Octovisor.Tests.Client
                 Data = null,
                 OriginName = config.ProcessName,
                 TargetName = "Meta1",
-                Status = MessageStatus.OK,
+                Status = MessageStatus.DataRequest,
             });
 
             Console.Read();

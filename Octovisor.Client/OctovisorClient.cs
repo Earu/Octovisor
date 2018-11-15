@@ -85,7 +85,7 @@ namespace Octovisor.Client
                 TargetName = "SERVER",
                 Identifier = "INTERNAL_OCTOVISOR_PROCESS_INIT",
                 Data = this.Config.Token,
-                Status = MessageStatus.OK,
+                Status = MessageStatus.DataRequest,
             });
 
             this.CallLogEvent("Registering on server");
@@ -99,7 +99,7 @@ namespace Octovisor.Client
                 TargetName = "SERVER",
                 Identifier = "INTERNAL_OCTOVISOR_PROCESS_END",
                 Data = this.Config.Token,
-                Status = MessageStatus.OK,
+                Status = MessageStatus.DataRequest,
             });
 
             this.CallLogEvent("Ending on server");
