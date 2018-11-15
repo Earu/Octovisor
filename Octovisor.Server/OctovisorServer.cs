@@ -305,8 +305,12 @@ namespace Octovisor.Server
             EndPoint endpoint = this.EndpointLookup[msg.TargetName];
             StateObject state = this.States[endpoint];
             this.Send(state, msg);
-            this.Logger.Write(ConsoleColor.Green, "Message", $"Forwarded {msg.Length} bytes " +
-                $"| (ID: {msg.Identifier}) {msg.OriginName} -> {msg.TargetName}");
+
+            string sufix = $"| (ID: {msg.Identifier}) {msg.OriginName} -> {msg.TargetName}";
+            if (msg.Status == MessageStatus.DataRequest)
+                this.Logger.Write(ConsoleColor.Green, "Message", $"Requesting data {sufix}");
+            else if (msg.Status == MessageStatus.DataResponse)
+                this.Logger.Write(ConsoleColor.Green, "Message", $"Forwarded {msg.Length} bytes {sufix}");
         }
 
         private void SendbackMessage(StateObject state, Message msg,MessageStatus status,string data=null)
