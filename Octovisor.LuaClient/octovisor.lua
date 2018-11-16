@@ -1,6 +1,7 @@
 local copas  = require("copas")
 local Socket = require("socket")
 local JSON   = require("dkjson")
+local Task   = require("task")
 
 local Octovisor   = {}
 Octovisor.__index = Octovisor
@@ -21,7 +22,7 @@ local MessageFinalizer = "__END__"
 function Octovisor:Printf(str,...)
     if self.Config.Verbose then
         local prefix = ("[Octovisor:%s] >> "):format(self.Config.ProcessName)
-	    print(prefix .. str:format(...))
+        print(prefix .. str:format(...))
     end
 end
 
@@ -31,18 +32,14 @@ local function SendingHandler(octoclient)
         if #octoclient.MessageQueue > 0 then
             octoclient.Sending = true
             local msg = octoclient.MessageQueue[1]
-            local data = JSON.encode(msg) .. MessageFinalizer
-            octoclient:Printf("Sending %d bytes:\n%s",data:len(),data)
-            local bytesent,err = octoclient.Socket:send(data)
-            table.remove(octoclient.MessageQueue,1)
-
+            local bytesent,err = octoclient:PopMessage(msg)
             if not bytesent then
                 octoclient:Close()
                 error(err)
             end
         else
             octoclient.Sending = false
-            copas.sleep(-1)
+            coroutine.yield()
         end
     end
 end
@@ -60,7 +57,7 @@ local function ReceivingHandler(octoclient)
 
         if data then
             local msg = JSON.decode(data:sub(1,data:len() - MessageFinalizer:len()))
-            octoclient:Printf("Received %d bytes:\n%s",data:len(),data)
+            octoclient:Printf("Received %d bytes",data:len())
 
             if msg.status == MessageStatus.DataResponse then
                 octoclient:HandleDataCallback(msg)
@@ -80,22 +77,22 @@ end
 -- Tries to connect to the Octovisor server specified in the config
 function Octovisor:Connect()
     if self.IsConnected then return end
-    self.ReceivingThread = copas.addthread(function()
-        local sock = copas.wrap(Socket.tcp6())
-		sock:settimeout(0) -- this makes sock:receive() work as copas.receiveParital
+    
+    self.Socket = copas.wrap(Socket.tcp6())
+    self.Socket:settimeout(0) -- this makes sock:receive() work as copas.receiveParital
 
-        self:Printf("Attempting to connect @ %s:%d",self.Config.ServerAddress,self.Config.ServerPort)
+    self:Printf("Attempting to connect @ %s:%d",self.Config.ServerAddress,self.Config.ServerPort)
 
-        local success,result = sock:connect(self.Config.ServerAddress,self.Config.ServerPort)
-        if success then
-            self.IsConnected = true
-            self.Socket = sock
+    local success,result = Task(self.Socket.connect,self,self.Config.ServerAddress,self.Config.ServerPort):Await()
+    if success then
+        self.IsConnected = true
+        self.SendingCoroutine = coroutine.create(SendingHandler)
+        coroutine.resume(self.SendingCoroutine,self)
+    else
+        error(result)
+    end
 
-            self.SendingThread = copas.addthread(function() SendingHandler(self) end)
-        else
-            error(result)
-        end
-
+    self.ReceivingCoroutine = copas.addthread(function()
         ReceivingHandler(self)
     end)
 end
@@ -105,12 +102,13 @@ function Octovisor:Close()
     if not self.IsConnected then return end
     self:Printf("Closing connection @ %s:%d",self.Config.ServerAddress,self.Config.ServerPort)
     self.IsConnected = false
-    self.Socket:close()
+
+    return Task(self.Socket.close,self)
 end
 
 local CurrentMessageID = 0
 -- Sends a raw message to the server
-function Octovisor:SendMessage(msg,callback)
+function Octovisor:PushMessage(msg,callback)
     if not type(msg) == "table" then return end
 
     msg.id = CurrentMessageID
@@ -120,32 +118,51 @@ function Octovisor:SendMessage(msg,callback)
     self.DataCallbacks[msg.id] = callback
 
     if not self.Sending and #self.MessageQueue > 0 then
-        copas.wakeup(self.SendingThread)
+        coroutine.resume(self.SendingCoroutine)
     end
 end
 
+function Octovisor:PopMessage()
+    local data = JSON.encode(msg) .. MessageFinalizer
+    self:Printf("Sending %d bytes",data:len())
+    local bytesent,err = self.Socket:send(data)
+    table.remove(self.MessageQueue,1)
+
+    return bytesent,err
+end
+
 -- Notifies the server that we want to send and receive data
-function Octovisor:Register(callback)
-	self:Printf("Registering %s",self.Config.ProcessName)
-    self:SendMessage({
+function Octovisor:Register()
+    self:Printf("Registering %s",self.Config.ProcessName)
+    local t = Task()
+    self:PushMessage({
         origin     = self.Config.ProcessName,
         target     = "SERVER",
         identifier = "INTERNAL_OCTOVISOR_PROCESS_INIT",
         data       = self.Config.Token,
         status     = MessageStatus.DataRequest,
-    },callback)
+    },function(data) 
+        t:Ressolve(data) 
+    end)
+
+    return t:Await()
 end
 
 -- Notifies the server that we dont want to receive or send data anymore
-function Octovisor:Unregister(callback)
-	self:Printf("Unregistering %s",self.Config.ProcessName)
-	self:SendMessage({
+function Octovisor:Unregister()
+    self:Printf("Unregistering %s",self.Config.ProcessName)
+    local t = Task()
+	self:PushMessage({
         origin     = self.Config.ProcessName,
         target     = "SERVER",
         identifier = "INTERNAL_OCTOVISOR_PROCESS_END",
         data       = self.Config.Token,
         status     = MessageStatus.DataRequest,
-    },callback)
+    },function(data)
+        t:Ressolve(data)
+    end)
+
+    return t:Await()
 end
 
 local RemoteProcess = {}
@@ -153,20 +170,26 @@ RemoteProcess.__index = RemoteProcess
 
 -- Ask for a distant process for a specific data, and registers a callback
 -- to be called when the data is received
-function RemoteProcess:GetData(identifer,callback)
-    self.Client:SendMessage({
-        origin    = self.Client.Config.ProcessName,
-        target    = self.Name,
-        identifer = identifer,
-        status    = MessageStatus.DataRequest,
-    },callback)
+function RemoteProcess:GetData(identifier)
+    local t = Task()
+    self.Client:PushMessage({
+        origin     = self.Client.Config.ProcessName,
+        target     = self.Name,
+        identifier = identifier,
+        status     = MessageStatus.DataRequest,
+    },function(data)
+        t:Ressolve(data)
+    end)
+
+    return t:Await()
 end
 
 -- Creates remote process object corresponding to a distant process
 function Octovisor:RemoteProcess(procname)
+    assert(procname,"You must specify the remote process name")
     return setmetatable({
         Client = self,
-        Name   = procname or "UNKNOWN_REMOTE_PROCESS",
+        Name   = procname,
     },RemoteProcess)
 end
 
@@ -189,10 +212,10 @@ function Octovisor:HandleDataRequest(msg)
             msg.target = msg.origin
             msg.origin = target
             msg.status = MessageStatus.DataResponse
-            self:SendMessage(msg)
+            self:PushMessage(msg)
         else
-            self:Printf("Callback %s will not be called anymore\n%s",msg.identifer,vargs[1])
-            self.DataResponses[msg.identifer] = nil
+            self:Printf("Callback %s will not be called anymore\n%s",msg.identifier,vargs[1])
+            self.DataResponses[msg.identifier] = nil
         end
     end
 end
