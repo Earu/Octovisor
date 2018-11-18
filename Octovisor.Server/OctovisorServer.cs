@@ -74,19 +74,16 @@ namespace Octovisor.Server
         {
             try
             {
-                IPHostEntry hostinfo = Dns.GetHostEntry(this.Config.ServerAddress);
-                IPAddress ipadr      = hostinfo.AddressList[0];
-                IPEndPoint endpoint  = new IPEndPoint(ipadr, this.Config.ServerPort);
+                IPEndPoint endpoint  = new IPEndPoint(IPAddress.IPv6Any, this.Config.ServerPort);
 
-                this.Listener = new Socket(SocketType.Stream, ProtocolType.Tcp)
-                {
-                    DualMode = true
-                };
+                this.Listener = new Socket(SocketType.Stream, ProtocolType.Tcp);
+                this.Listener.DualMode = true;
+                this.Listener.SetSocketOption(SocketOptionLevel.IPv6, SocketOptionName.IPv6Only, 0);
                 this.Listener.Bind(endpoint);
                 this.Listener.Listen(this.Config.MaximumProcesses);
 
                 this.Logger.Write(ConsoleColor.Magenta, "Server", 
-                    $"Listening for connections at {this.Config.ServerAddress}:{this.Config.ServerPort}...");
+                    $"Listening for connections at {endpoint}...");
 
                 while (this.ShouldRun)
                 {
@@ -188,6 +185,7 @@ namespace Octovisor.Server
                         {
                             case "INTERNAL_OCTOVISOR_PROCESS_INIT":
                                 receivemore = this.RegisterRemoteProcess(state, msg.OriginName, msg.Data);
+                                this.SendbackMessage(state, msg, MessageStatus.DataResponse, receivemore.ToString().ToLower());
                                 break;
                             case "INTERNAL_OCTOVISOR_PROCESS_END":
                                 receivemore = this.EndRemoteProcess(msg.OriginName, msg.Data);
@@ -315,8 +313,12 @@ namespace Octovisor.Server
 
         private void SendbackMessage(StateObject state, Message msg,MessageStatus status,string data=null)
         {
-            msg.Data = data ?? msg.Data;
-            msg.Status = status;
+            string target  = msg.TargetName;
+            msg.TargetName = msg.OriginName;
+            msg.OriginName = target;
+            msg.Data       = data ?? msg.Data;
+            msg.Status     = status;
+
             this.Send(state, msg);
         }
 
