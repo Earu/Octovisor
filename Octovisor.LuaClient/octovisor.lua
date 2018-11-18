@@ -262,6 +262,11 @@ end
 
 -- Creates a new instance of an OctovisorClient
 function OctovisorClient(config)
+    assert(config,"No config was passed")
+    assert(config.ServerAddress,"ServerAddress field is nil")
+    assert(config.ServerPort,"ServerPort field is nil")
+    assert(config.ProcessName,"ProcessName field is nil")
+
     return setmetatable({
         IsConnected      = false,
         Sending          = false,
