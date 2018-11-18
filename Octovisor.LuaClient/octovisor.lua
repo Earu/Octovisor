@@ -1,22 +1,23 @@
 local copas  = require("copas")
 local Socket = require("socket")
 local JSON   = require("dkjson")
-local Task   = require("task")
 
 local Octovisor   = {}
 Octovisor.__index = Octovisor
 
 local MessageStatus = {
-    DataRequest           = 0,
-    DataResponse          = 1,
-    ServerError           = 2,
-    TargetError           = 3,
-    NetworkError          = 4,
-    MalformedMessageError = 5,
-    ProcessNotFound       = 6,
+    DataRequest              = 0,
+    DataResponse             = 1,
+    ServerError              = 2,
+    TargetError              = 3,
+    NetworkError             = 4,
+    MalformedMessageError    = 5,
+    ProcessNotFound          = 6,
+    UnknownMessageIdentifier = 7,
 }
 
 local MessageFinalizer = "__END__"
+local FNil = function() end
 
 -- Your typical printf function
 function Octovisor:Printf(str,...)
@@ -39,16 +40,15 @@ local function SendingHandler(octoclient)
             end
         else
             octoclient.Sending = false
-            coroutine.yield()
+            copas.sleep(-1)
         end
     end
 end
 
-local BufferSize = 256
 -- The handler for the receiving coroutine
 local function ReceivingHandler(octoclient)
     while octoclient.IsConnected do
-        local data,err,partial = octoclient.Socket:receive(BufferSize)
+        local data,err,partial = octoclient.Socket:receive(octoclient.BufferSize)
         if not data and err == "timeout" then
     		data = partial
     		err,partial = nil,nil
@@ -56,15 +56,17 @@ local function ReceivingHandler(octoclient)
         if data and err and partial then assert(false,"???") end
 
         if data then
-            local msg = JSON.decode(data:sub(1,data:len() - MessageFinalizer:len()))
-            octoclient:Printf("Received %d bytes",data:len())
+            local msg,err = JSON.decode(data:sub(1,data:len() - MessageFinalizer:len()))
+            octoclient:Printf("Received %d bytes (%s)",data:len(),msg.data)
 
-            if msg.status == MessageStatus.DataResponse then
-                octoclient:HandleDataCallback(msg)
-            elseif msg.status == MessageStatus.DataRequest then
-                octoclient:HandleDataRequest(msg)
+            if msg then
+                if msg.status > MessageStatus.DataRequest then
+                    octoclient:HandleDataCallback(msg)
+                else
+                    octoclient:HandleDataRequest(msg)
+                end
             else
-                octoclient:Printf("??? message status was %d",msg.status)
+                octoclient:Printf("Malformed message ??\n%s",err)
             end
         else
             local config = octoclient.Config
@@ -75,56 +77,58 @@ local function ReceivingHandler(octoclient)
 end
 
 -- Tries to connect to the Octovisor server specified in the config
-function Octovisor:Connect()
+function Octovisor:Connect(callback)
     if self.IsConnected then return end
-    
-    self.Socket = copas.wrap(Socket.tcp6())
-    self.Socket:settimeout(0) -- this makes sock:receive() work as copas.receiveParital
-
-    self:Printf("Attempting to connect @ %s:%d",self.Config.ServerAddress,self.Config.ServerPort)
-
-    local success,result = Task(self.Socket.connect,self,self.Config.ServerAddress,self.Config.ServerPort):Await()
-    if success then
-        self.IsConnected = true
-        self.SendingCoroutine = coroutine.create(SendingHandler)
-        coroutine.resume(self.SendingCoroutine,self)
-    else
-        error(result)
-    end
+    callback = callback or FNil
 
     self.ReceivingCoroutine = copas.addthread(function()
-        ReceivingHandler(self)
+        self.Socket = copas.wrap(self.Config.IPV6 and Socket.tcp6() or Socket.tcp4())
+        self.Socket:settimeout(0)
+
+        self:Printf("Attempting to connect @ %s:%d",self.Config.ServerAddress,self.Config.ServerPort)
+
+        local success,result = self.Socket:connect(self.Config.ServerAddress,self.Config.ServerPort)
+        if success then
+            self.IsConnected = true
+            self.SendingCoroutine = copas.addthread(function()
+                SendingHandler(self)
+            end)
+            self:Register(callback)
+            ReceivingHandler(self)
+        else
+            error(result)
+        end
     end)
 end
 
--- Diposes of the OctovisorClient's current instance
+-- Diposes of the current instance
 function Octovisor:Close()
     if not self.IsConnected then return end
     self:Printf("Closing connection @ %s:%d",self.Config.ServerAddress,self.Config.ServerPort)
     self.IsConnected = false
 
-    return Task(self.Socket.close,self)
+    return self.Socket:close()
 end
 
-local CurrentMessageID = 0
 -- Sends a raw message to the server
 function Octovisor:PushMessage(msg,callback)
     if not type(msg) == "table" then return end
+    callback = callback or FNil
 
-    msg.id = CurrentMessageID
-    CurrentMessageID = CurrentMessageID + 1
+    msg.id = self.CurrentMessageID
+    self.DataCallbacks[self.CurrentMessageID] = callback
+
+    self.CurrentMessageID = self.CurrentMessageID + 1
     table.insert(self.MessageQueue,msg)
 
-    self.DataCallbacks[msg.id] = callback
-
     if not self.Sending and #self.MessageQueue > 0 then
-        coroutine.resume(self.SendingCoroutine)
+        copas.wakeup(self.SendingCoroutine)
     end
 end
 
-function Octovisor:PopMessage()
+function Octovisor:PopMessage(msg)
     local data = JSON.encode(msg) .. MessageFinalizer
-    self:Printf("Sending %d bytes",data:len())
+    self:Printf("Sending %d bytes (%s)",data:len(),msg.data)
     local bytesent,err = self.Socket:send(data)
     table.remove(self.MessageQueue,1)
 
@@ -132,37 +136,33 @@ function Octovisor:PopMessage()
 end
 
 -- Notifies the server that we want to send and receive data
-function Octovisor:Register()
+function Octovisor:Register(callback)
     self:Printf("Registering %s",self.Config.ProcessName)
-    local t = Task()
     self:PushMessage({
         origin     = self.Config.ProcessName,
         target     = "SERVER",
         identifier = "INTERNAL_OCTOVISOR_PROCESS_INIT",
         data       = self.Config.Token,
         status     = MessageStatus.DataRequest,
-    },function(data) 
-        t:Ressolve(data) 
+    },function(registered)
+        if not registered then
+            error("Could not register, check server logs")
+        else
+            callback()
+        end
     end)
-
-    return t:Await()
 end
 
 -- Notifies the server that we dont want to receive or send data anymore
 function Octovisor:Unregister()
     self:Printf("Unregistering %s",self.Config.ProcessName)
-    local t = Task()
 	self:PushMessage({
         origin     = self.Config.ProcessName,
         target     = "SERVER",
         identifier = "INTERNAL_OCTOVISOR_PROCESS_END",
         data       = self.Config.Token,
         status     = MessageStatus.DataRequest,
-    },function(data)
-        t:Ressolve(data)
-    end)
-
-    return t:Await()
+    })
 end
 
 local RemoteProcess = {}
@@ -170,18 +170,13 @@ RemoteProcess.__index = RemoteProcess
 
 -- Ask for a distant process for a specific data, and registers a callback
 -- to be called when the data is received
-function RemoteProcess:GetData(identifier)
-    local t = Task()
+function RemoteProcess:GetData(identifier,callback)
     self.Client:PushMessage({
         origin     = self.Client.Config.ProcessName,
         target     = self.Name,
         identifier = identifier,
         status     = MessageStatus.DataRequest,
-    },function(data)
-        t:Ressolve(data)
-    end)
-
-    return t:Await()
+    },callback)
 end
 
 -- Creates remote process object corresponding to a distant process
@@ -209,22 +204,54 @@ function Octovisor:HandleDataRequest(msg)
         if success then
             msg.data = #vargs > 1 and vargs or vargs[1]
             local target = msg.target
-            msg.target = msg.origin
-            msg.origin = target
-            msg.status = MessageStatus.DataResponse
+            msg.target   = msg.origin
+            msg.origin   = target
+            msg.status   = MessageStatus.DataResponse
             self:PushMessage(msg)
         else
             self:Printf("Callback %s will not be called anymore\n%s",msg.identifier,vargs[1])
             self.DataResponses[msg.identifier] = nil
         end
+    else
+        local target = msg.target
+        msg.target   = msg.origin
+        msg.origin   = target
+        msg.status   = MessageStatus.UnknownMessageIdentifier
+        self:PushMessage(msg)
     end
 end
 
+local Errors = {
+    [MessageStatus.TargetError] = function(procname,identifier)
+        return ("Remote process (%s) could not process message (%s)"):format(procname,identifier)
+    end,
+    [MessageStatus.ServerError] = function(_,identifier)
+        return ("Server could not process message (%s)"):format(identifier)
+    end,
+    [MessageStatus.NetworkError] = function()
+        return "Network issues"
+    end,
+    [MessageStatus.MalformedMessageError] = function()
+        return "Malformed message"
+    end,
+    [MessageStatus.ProcessNotFound] = function(procname)
+        return ("Unknown remote process (%s)"):format(procname)
+    end,
+    [MessageStatus.UnknownMessageIdentifier] = function(procname,identifier)
+        return ("Remote process (%s) did not know forwarded message idenfier (%s)"):format(procname,identifier)
+    end,
+}
 -- Calls the associated callback when responses from the distant processes are received
 function Octovisor:HandleDataCallback(msg)
+    if Errors[msg.status] then
+        local err = Errors[msg.status](msg.origin,msg.identifier)
+        self:Printf(err)
+    end
+
     local callback = self.DataCallbacks[msg.id]
     if callback then
-        local requestedata = msg.data and JSON.decode(msg.data) or nil
+        local isnil = msg.data == nil
+        local requestedata = not isnil and JSON.decode(msg.data) or (not isnil and tostring(msg.data) or nil)
         local success,result = pcall(callback,requestedata)
         if not success then
             self:Printf("Error when requesting data with identifier %s\n%s",msg.identifier,result)
@@ -236,12 +263,14 @@ end
 -- Creates a new instance of an OctovisorClient
 function OctovisorClient(config)
     return setmetatable({
-        IsConnected     = false,
-        Sending         = false,
-        Receiving       = false,
-        Config          = config,
-        MessageQueue    = {},
-        DataResponses   = {},
-        DataCallbacks   = {},
+        IsConnected      = false,
+        Sending          = false,
+        Receiving        = false,
+        Config           = config,
+        BufferSize       = 256,
+        CurrentMessageID = 0,
+        MessageQueue     = {},
+        DataResponses    = {},
+        DataCallbacks    = {},
     }, Octovisor)
 end
