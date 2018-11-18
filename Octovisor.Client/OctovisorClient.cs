@@ -57,8 +57,8 @@ namespace Octovisor.Client
                 this.Client = new Socket(ipadr.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
                 this.Client.BeginConnect(endpoint, res => {
                     this.ConnectCallback(res);
-                    tcs.SetResult(true);
                     this.IsConnected = true;
+                    tcs.SetResult(true);
                 }, this.Client);
                 this.OnConnectDone.WaitOne();
             }
@@ -66,6 +66,7 @@ namespace Octovisor.Client
             {
                 this.IsConnected = false;
                 this.CallErrorEvent(e);
+                tcs.SetException(e);
             }
 
             await tcs.Task;
