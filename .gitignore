@@ -268,3 +268,9 @@ Octovisor\.Client/Models/\.DS_Store
 Octovisor\.Server/\.DS_Store
 
 \.DS_Store
+
+Octovisor\.Tests\.Server/logs\.txt
+
+\.vscode/launch\.json
+
+\.vscode/tasks\.json
