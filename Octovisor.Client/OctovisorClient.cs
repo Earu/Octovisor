@@ -11,6 +11,7 @@ namespace Octovisor.Client
     public class OctovisorClient
     {
         private static readonly string MessageFinalizer = "__END__";
+        private double CurrentMessageID = 0;
 
         public event Action<Exception> OnError;
         public event Action<string> Log;
@@ -37,7 +38,7 @@ namespace Octovisor.Client
         }
 
         private void CallErrorEvent(Exception e) => this.OnError?.Invoke(e);
-        private void CallLogEvent(string log) => this.Log?.Invoke(log);
+        private void CallLogEvent(string log)    => this.Log?.Invoke(log);
 
         /// <summary>
         /// Connects to the remote octovisor server
@@ -171,6 +172,7 @@ namespace Octovisor.Client
             TaskCompletionSource<bool> tcs = new TaskCompletionSource<bool>();
             try
             {
+                msg.ID = this.CurrentMessageID++;
                 string data = msg.Serialize();
                 data += MessageFinalizer;
                 byte[] bytedata = Encoding.UTF8.GetBytes(data);
