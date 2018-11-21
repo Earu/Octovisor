@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using Octovisor.Models;
 
 namespace Octovisor.Server
@@ -13,11 +14,10 @@ namespace Octovisor.Server
         private static readonly string MessageFinalizer = "__END__";
 
         private bool ShouldRun;
-        private Socket Listener;
+        private TcpListener Listener;
         private Thread Thread;
 
         private readonly ServerConfig Config;
-        private readonly ManualResetEvent ResetEvent;
         private readonly Dictionary<EndPoint, StateObject> States;
         private readonly Dictionary<string, EndPoint> EndpointLookup;
 
@@ -37,7 +37,6 @@ namespace Octovisor.Server
 
             this.Config         = config;
             this.ShouldRun      = true;
-            this.ResetEvent     = new ManualResetEvent(false);
             this.Logger         = new OctovisorLogger();
             this.States         = new Dictionary<EndPoint, StateObject>();
             this.EndpointLookup = new Dictionary<string, EndPoint>();
@@ -48,10 +47,17 @@ namespace Octovisor.Server
         /// </summary>
         public void Run()
         {
-            if (this.Thread != null) return;
+            if(this.Thread != null)
+            {
+                if(this.Thread.IsAlive)
+                    this.Stop();
+                else
+                    return;
+            }
+                
 
             this.ShouldRun = true;
-            this.Thread = new Thread(this.InternalRun);
+            this.Thread = new Thread(() => this.InternalRun().Wait());
             this.Thread.Start();
         }
 
@@ -60,43 +66,53 @@ namespace Octovisor.Server
         /// </summary>
         public void Stop()
         {
-            if (this.Thread == null) return;
+            if(this.Thread == null) return;
 
             this.ShouldRun = false;
-            //Hack to wait that the thread finishes
-#pragma warning disable RECS0034 
-            while (this.Thread.IsAlive) ;
-#pragma warning restore RECS0034
+            while(this.Thread.IsAlive);
             this.Thread = null;
         }
 
-        private void InternalRun()
+        private async Task InternalRun()
         {
             try
             {
                 IPEndPoint endpoint  = new IPEndPoint(IPAddress.IPv6Any, this.Config.ServerPort);
+                TcpListener listener = new TcpListener(endpoint);
+                // To accept IPv4 and IPv6
+                listener.Server.DualMode = true;
+                listener.Server.SetSocketOption(SocketOptionLevel.IPv6, SocketOptionName.IPv6Only, 0);
+                listener.Start(this.Config.MaximumProcesses);
 
-                this.Listener = new Socket(SocketType.Stream, ProtocolType.Tcp);
-                this.Listener.DualMode = true;
-                this.Listener.SetSocketOption(SocketOptionLevel.IPv6, SocketOptionName.IPv6Only, 0);
-                this.Listener.Bind(endpoint);
-                this.Listener.Listen(this.Config.MaximumProcesses);
+                this.Listener = listener;
 
                 this.Logger.Write(ConsoleColor.Magenta, "Server", 
                     $"Listening for connections at {endpoint}...");
 
                 while (this.ShouldRun)
                 {
-                    this.ResetEvent.Reset();
-                    this.Listener.BeginAccept(this.AcceptCallback, this.Listener);
-                    this.ResetEvent.WaitOne();
+                    Socket handler = await this.Listener.AcceptSocketAsync();
+                    StateObject state = new StateObject(handler);
+
+                    try
+                    {
+                        state.WorkSocket.BeginReceive(state.Buffer, 0,
+                            StateObject.BufferSize, SocketFlags.None, this.ReadCallback, state);
+                    }
+                    catch(SocketException e)
+                    {
+                        this.ProcessSocketException(state, e);
+                    }
+                    catch(Exception e)
+                    {
+                        this.Logger.Error(e.ToString());
+                    }
                 }
 
                 foreach (KeyValuePair<string, EndPoint> kv in this.EndpointLookup)
                     this.EndRemoteProcess(kv.Key, this.Config.Token);
 
-                this.Listener.Shutdown(SocketShutdown.Both);
-                this.Listener.Close();
+                this.Listener.Stop();
             }
             catch (Exception e)
             {
@@ -114,30 +130,6 @@ namespace Octovisor.Server
                 this.EndRemoteProcess(state.WorkSocket.RemoteEndPoint);
             }
             else
-            {
-                this.Logger.Error(e.ToString());
-            }
-        }
-
-        private void AcceptCallback(IAsyncResult ar)
-        {
-            this.ResetEvent.Set();
-
-            Socket listener = (Socket)ar.AsyncState;
-            Socket handler  = listener.EndAccept(ar);
-
-            StateObject state = new StateObject(handler);
-
-            try
-            {
-                state.WorkSocket.BeginReceive(state.Buffer, 0,
-                    StateObject.BufferSize, SocketFlags.None, this.ReadCallback, state);
-            }
-            catch(SocketException e)
-            {
-                this.ProcessSocketException(state, e);
-            }
-            catch(Exception e)
             {
                 this.Logger.Error(e.ToString());
             }
