@@ -27,7 +27,7 @@ namespace Octovisor.Tests.Client
             await client.Connect();
 
             // Test spam to test server
-            for(int i = 0; i < 10; i++)
+            for(int i = 0; i < 100; i++)
                 await client.Send(new Message
                 {
                     Identifier = "meme",

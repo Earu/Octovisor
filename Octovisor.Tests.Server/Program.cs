@@ -13,12 +13,12 @@ namespace Octovisor.Tests.Server
             ServerConfig config = new ServerConfig
             {
                 Token = "MetaCosntructIsCool",
-                ServerPort = 1100,
+                ServerPort = 6558,
                 MaximumProcesses = 255,
             };
 
             OctovisorServer server = new OctovisorServer(config);
-            server.Run();
+            server.Run().Wait();
         }
     }
 }
