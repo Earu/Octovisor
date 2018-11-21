@@ -16,7 +16,7 @@ namespace Octovisor.Server
 
         private bool ShouldRun;
         private TcpListener Listener;
-        private Thread Thread;
+        private Task Task;
 
         private readonly ServerConfig Config;
         private readonly Dictionary<EndPoint, StateObject> States;
@@ -46,19 +46,15 @@ namespace Octovisor.Server
         /// <summary>
         /// Run this instance.
         /// </summary>
-        public void Run()
+        public Task Run()
         {
-            if(this.Thread != null)
-            {
-                if(this.Thread.IsAlive)
-                    this.Stop();
-                else
-                    return;
-            }
+            if(this.Task != null)
+                this.Stop();
 
             this.ShouldRun = true;
-            this.Thread = new Thread(this.InternalRun);
-            this.Thread.Start();
+            this.Task = this.InternalRun();
+
+            return this.Task;
         }
 
         /// <summary>
@@ -66,14 +62,13 @@ namespace Octovisor.Server
         /// </summary>
         public void Stop()
         {
-            if(this.Thread == null) return;
+            if(this.Task == null) return;
 
             this.ShouldRun = false;
-            while(this.Thread.IsAlive);
-            this.Thread = null;
+            this.Task.Wait();
         }
 
-        private void InternalRun()
+        private async Task InternalRun()
         {
             try
             {
@@ -86,14 +81,13 @@ namespace Octovisor.Server
 
                 this.Listener = listener;
 
-                this.Logger.Write(ConsoleColor.Magenta, "Server", 
+                this.Logger.Write(ConsoleColor.Magenta, "Server",
                     $"Listening for connections at {endpoint}...");
 
                 // No await = no block
                 while (this.ShouldRun)
-                    #pragma warning disable CS4014
-                    this.ProcessConnection();
-                    #pragma warning restore CS4014
+                    await this.ProcessConnection();
+
 
                 foreach (KeyValuePair<string, EndPoint> kv in this.EndpointLookup)
                     this.EndRemoteProcess(kv.Key, this.Config.Token);
@@ -112,18 +106,9 @@ namespace Octovisor.Server
             TcpClient client = await this.Listener.AcceptTcpClientAsync();
             StateObject state = new StateObject(client);
 
-            try
-            {
-                await this.ListenRemoteProcess(state);
-            }
-            catch(SocketException e)
-            {
-                this.ProcessException(state, e);
-            }
-            catch(Exception e)
-            {
-                this.Logger.Error(e.ToString());
-            }
+            #pragma warning disable CS4014
+            this.ListenRemoteProcess(state);
+            #pragma warning restore CS4014
         }
 
         private void ProcessException(StateObject state,Exception e)
@@ -131,7 +116,7 @@ namespace Octovisor.Server
             SocketException se = null;
             if(e is SocketException)
                 se = (SocketException)e;
-            else if(e.InnerException is SocketException) 
+            else if(e.InnerException is SocketException)
                 se = (SocketException)e.InnerException;
 
             //10054

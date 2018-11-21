@@ -145,16 +145,20 @@ function Octovisor:Register(callback)
         data       = self.Config.Token,
         status     = MessageStatus.DataRequest,
     },function(registered)
+        self.IsRegistered = registered
         if not registered then
             error("Could not register, check server logs")
         else
-            callback()
+            if callback then
+                callback()
+            end
         end
     end)
 end
 
 -- Notifies the server that we dont want to receive or send data anymore
 function Octovisor:Unregister()
+    if not self.IsConnected or not self.Register then return end
     self:Printf("Unregistering %s",self.Config.ProcessName)
 	self:PushMessage({
         origin     = self.Config.ProcessName,
@@ -269,6 +273,7 @@ function OctovisorClient(config)
 
     return setmetatable({
         IsConnected      = false,
+        IsRegistered     = false,
         Sending          = false,
         Receiving        = false,
         Config           = config,
