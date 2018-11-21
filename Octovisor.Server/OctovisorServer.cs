@@ -144,10 +144,10 @@ namespace Octovisor.Server
                 this.Logger.Error(e.ToString());
         }
 
-        private string HandleReceivedData(StateObject state, int bytesread)
+        private List<string> HandleReceivedData(StateObject state, int bytesread)
         {
             string content = Encoding.UTF8.GetString(state.Buffer, 0, bytesread);
-            string fullsmsg = null;
+            List<string> msgdata = new List<string>();
             foreach (char c in content)
             {
                 state.Builder.Append(c);
@@ -156,12 +156,12 @@ namespace Octovisor.Server
                 int endlen = MessageFinalizer.Length;
                 if (current.Length >= endlen && current.Substring(current.Length - endlen, endlen) == MessageFinalizer)
                 {
-                    fullsmsg = state.Builder.ToString();
+                    msgdata.Add(state.Builder.ToString());
                     state.Builder.Clear();
                 }
             }
 
-            return fullsmsg;
+            return msgdata;
         }
 
         private async Task ListenRemoteProcess(StateObject state)
@@ -174,13 +174,13 @@ namespace Octovisor.Server
 
                 if (bytesread > 0)
                 {
-                    string fullsmsg = this.HandleReceivedData(state, bytesread);
+                    List<string> msgdata = this.HandleReceivedData(state, bytesread);
                     bool receivemore = false;
 
-                    if (!string.IsNullOrWhiteSpace(fullsmsg))
+                    foreach(string data in msgdata)
                     {
-                        fullsmsg = fullsmsg.Substring(0, fullsmsg.Length - MessageFinalizer.Length);
-                        Message msg = Message.Deserialize(fullsmsg);
+                        string smsg = data.Substring(0, data.Length - MessageFinalizer.Length);
+                        Message msg = Message.Deserialize(smsg);
                         switch (msg.Identifier)
                         {
                             case "INTERNAL_OCTOVISOR_PROCESS_INIT":
