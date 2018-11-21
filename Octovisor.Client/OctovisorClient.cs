@@ -16,25 +16,20 @@ namespace Octovisor.Client
         public event Action<Exception> OnError;
         public event Action<string> Log;
 
-        private readonly ManualResetEvent OnConnectDone;
-        private readonly ManualResetEvent OnSendDone;
-        private readonly ManualResetEvent OnReceiveDone;
-
-        private Socket Client;
+        private TcpClient Client;
 
         private readonly ClientConfig Config;
 
         public bool IsConnected { get; private set; }
+        public bool IsRegistered { get; private set; }
 
         public OctovisorClient(ClientConfig config)
         {
             if (!config.IsValid())
                 throw new Exception("Invalid Octovisor client configuration");
                 
-            this.Config        = config;
-            this.OnConnectDone = new ManualResetEvent(false);
-            this.OnSendDone    = new ManualResetEvent(false);
-            this.OnReceiveDone = new ManualResetEvent(false);
+            this.Config = config;
+            this.Client = new TcpClient();
         }
 
         private void CallErrorEvent(Exception e) => this.OnError?.Invoke(e);
@@ -48,35 +43,22 @@ namespace Octovisor.Client
 
         private async Task InternalConnect()
         {
-            TaskCompletionSource<bool> tcs = new TaskCompletionSource<bool>();
             try
             {
                 IPHostEntry hostinfo = Dns.GetHostEntry(this.Config.ServerAddress);
                 IPAddress ipadr      = hostinfo.AddressList[0];
-                IPEndPoint endpoint  = new IPEndPoint(ipadr, this.Config.ServerPort);
                 
-                this.Client = new Socket(ipadr.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-                this.Client.BeginConnect(endpoint, res => {
-                    this.ConnectCallback(res);
-                    this.IsConnected = true;
-                    tcs.SetResult(true);
-                }, this.Client);
-                this.OnConnectDone.WaitOne();
+                await this.Client.ConnectAsync(ipadr,this.Config.ServerPort);
+                this.IsConnected = true;
             }
             catch(Exception e)
             {
                 this.IsConnected = false;
                 this.CallErrorEvent(e);
-                tcs.SetException(e);
             }
-
-            await tcs.Task;
 
             if(this.IsConnected)
-            {
                 await this.Register();
-                this.StartReceiving();
-            }
         }
 
         private async Task Register()
@@ -107,69 +89,10 @@ namespace Octovisor.Client
             this.CallLogEvent("Ending on server");
         }
 
-        private void ConnectCallback(IAsyncResult ar)
+        public async Task Send(Message msg)
         {
-            try
-            {
-                Socket client = (Socket)ar.AsyncState;
-                client.EndConnect(ar);
+            if (!this.IsConnected) return;
 
-                this.OnConnectDone.Set();
-            }
-            catch(Exception e)
-            {
-                this.CallErrorEvent(e);
-            }
-        }
-
-        private void StartReceiving()
-        {
-            this.CallLogEvent("Beginning receiving from server");
-
-            try
-            {
-                StateObject state = new StateObject(this.Client);
-
-                this.Client.BeginReceive(state.Buffer, 0, StateObject.BufferSize, 0, this.ReceiveCallback, state);
-            }
-            catch(Exception e) 
-            {
-                this.CallErrorEvent(e);
-            }
-        }
-
-        private void ReceiveCallback(IAsyncResult ar)
-        {
-            try
-            {
-                StateObject state = (StateObject)ar.AsyncState;
-                Socket client = state.WorkSocket;
-
-                int bytesread = client.EndReceive(ar);
-
-                if (bytesread > 0)
-                {
-                    string data = Encoding.UTF8.GetString(state.Buffer, 0, bytesread);
-                    this.CallLogEvent($"Received {bytesread} bytes\n{data}");
-
-                    client.BeginReceive(state.Buffer, 0, StateObject.BufferSize, 0, this.ReceiveCallback, state);
-                }
-                else
-                {
-                    this.OnReceiveDone.Set();
-                }
-            }
-            catch (Exception e)
-            {
-                this.CallErrorEvent(e);
-            }
-        }
-
-        public Task Send(Message msg)
-        {
-            if (!this.IsConnected) return Task.CompletedTask;
-
-            TaskCompletionSource<bool> tcs = new TaskCompletionSource<bool>();
             try
             {
                 msg.ID = this.CurrentMessageID++;
@@ -178,30 +101,9 @@ namespace Octovisor.Client
                 byte[] bytedata = Encoding.UTF8.GetBytes(data);
 
                 this.CallLogEvent($"Sending {data.Length} bytes\n{data}");
-                this.Client.BeginSend(bytedata, 0, bytedata.Length, 0, res =>
-                {
-                    this.SendCallback(res);
-                    tcs.SetResult(true);
-                }, this.Client);
-                this.OnSendDone.WaitOne();
-            }
-            catch(Exception e)
-            {
-                this.CallErrorEvent(e);
-                tcs.SetException(e);
-            }
 
-            return tcs.Task;
-        }
-
-        private void SendCallback(IAsyncResult ar)
-        {
-            try
-            {
-                Socket client = (Socket)ar.AsyncState;
-                client.EndSend(ar);
-
-                this.OnSendDone.Set();
+                NetworkStream stream = this.Client.GetStream();
+                await stream.WriteAsync(bytedata,0,bytedata.Length);
             }
             catch(Exception e)
             {
