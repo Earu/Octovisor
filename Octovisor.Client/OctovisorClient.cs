@@ -50,15 +50,14 @@ namespace Octovisor.Client
                 
                 await this.Client.ConnectAsync(ipadr,this.Config.ServerPort);
                 this.IsConnected = true;
+
+                await this.Register();
             }
             catch(Exception e)
             {
                 this.IsConnected = false;
                 this.CallErrorEvent(e);
             }
-
-            if(this.IsConnected)
-                await this.Register();
         }
 
         private async Task Register()
@@ -68,8 +67,8 @@ namespace Octovisor.Client
                 OriginName = this.Config.ProcessName,
                 TargetName = "SERVER",
                 Identifier = "INTERNAL_OCTOVISOR_PROCESS_INIT",
-                Data = this.Config.Token,
-                Status = MessageStatus.DataRequest,
+                Data       = this.Config.Token,
+                Status     = MessageStatus.DataRequest,
             });
 
             this.CallLogEvent("Registering on server");
@@ -82,8 +81,8 @@ namespace Octovisor.Client
                 OriginName = this.Config.ProcessName,
                 TargetName = "SERVER",
                 Identifier = "INTERNAL_OCTOVISOR_PROCESS_END",
-                Data = this.Config.Token,
-                Status = MessageStatus.DataRequest,
+                Data       = this.Config.Token,
+                Status     = MessageStatus.DataRequest,
             });
 
             this.CallLogEvent("Ending on server");
@@ -104,6 +103,7 @@ namespace Octovisor.Client
 
                 NetworkStream stream = this.Client.GetStream();
                 await stream.WriteAsync(bytedata,0,bytedata.Length);
+                await stream.FlushAsync();
             }
             catch(Exception e)
             {

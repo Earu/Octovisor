@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Octovisor.Models;
+using System.IO;
 
 namespace Octovisor.Server
 {
@@ -54,10 +55,9 @@ namespace Octovisor.Server
                 else
                     return;
             }
-                
 
             this.ShouldRun = true;
-            this.Thread = new Thread(() => this.InternalRun().Wait());
+            this.Thread = new Thread(this.InternalRun);
             this.Thread.Start();
         }
 
@@ -73,7 +73,7 @@ namespace Octovisor.Server
             this.Thread = null;
         }
 
-        private async Task InternalRun()
+        private void InternalRun()
         {
             try
             {
@@ -89,25 +89,11 @@ namespace Octovisor.Server
                 this.Logger.Write(ConsoleColor.Magenta, "Server", 
                     $"Listening for connections at {endpoint}...");
 
+                // No await = no block
                 while (this.ShouldRun)
-                {
-                    Socket handler = await this.Listener.AcceptSocketAsync();
-                    StateObject state = new StateObject(handler);
-
-                    try
-                    {
-                        state.WorkSocket.BeginReceive(state.Buffer, 0,
-                            StateObject.BufferSize, SocketFlags.None, this.ReadCallback, state);
-                    }
-                    catch(SocketException e)
-                    {
-                        this.ProcessSocketException(state, e);
-                    }
-                    catch(Exception e)
-                    {
-                        this.Logger.Error(e.ToString());
-                    }
-                }
+                    #pragma warning disable CS4014
+                    this.ProcessConnection();
+                    #pragma warning restore CS4014
 
                 foreach (KeyValuePair<string, EndPoint> kv in this.EndpointLookup)
                     this.EndRemoteProcess(kv.Key, this.Config.Token);
@@ -121,18 +107,41 @@ namespace Octovisor.Server
             }
         }
 
-        private void ProcessSocketException(StateObject state,SocketException e)
+        private async Task ProcessConnection()
         {
-            //10054
-            if (e.SocketErrorCode == SocketError.ConnectionReset)
+            TcpClient client = await this.Listener.AcceptTcpClientAsync();
+            StateObject state = new StateObject(client);
+
+            try
             {
-                this.Logger.Warn($"Process {state.Identifier} was forcibly closed");
-                this.EndRemoteProcess(state.WorkSocket.RemoteEndPoint);
+                await this.ListenRemoteProcess(state);
             }
-            else
+            catch(SocketException e)
+            {
+                this.ProcessException(state, e);
+            }
+            catch(Exception e)
             {
                 this.Logger.Error(e.ToString());
             }
+        }
+
+        private void ProcessException(StateObject state,Exception e)
+        {
+            SocketException se = null;
+            if(e is SocketException)
+                se = (SocketException)e;
+            else if(e.InnerException is SocketException) 
+                se = (SocketException)e.InnerException;
+
+            //10054
+            if (se != null && se.SocketErrorCode == SocketError.ConnectionReset)
+            {
+                this.Logger.Warn($"Process {state.Identifier} was forcibly closed");
+                this.EndRemoteProcess(state.RemoteEndPoint);
+            }
+            else
+                this.Logger.Error(e.ToString());
         }
 
         private string HandleReceivedData(StateObject state, int bytesread)
@@ -155,14 +164,13 @@ namespace Octovisor.Server
             return fullsmsg;
         }
 
-        private void ReadCallback(IAsyncResult ar)
+        private async Task ListenRemoteProcess(StateObject state)
         {
-            StateObject state = (StateObject)ar.AsyncState;
-            Socket handler = state.WorkSocket;
-
             try
             {
-                int bytesread = handler.EndReceive(ar);
+                TcpClient client = state.Client;
+                NetworkStream stream = client.GetStream();
+                int bytesread = await stream.ReadAsync(state.Buffer);
 
                 if (bytesread > 0)
                 {
@@ -177,48 +185,42 @@ namespace Octovisor.Server
                         {
                             case "INTERNAL_OCTOVISOR_PROCESS_INIT":
                                 receivemore = this.RegisterRemoteProcess(state, msg.OriginName, msg.Data);
-                                this.SendbackMessage(state, msg, MessageStatus.DataResponse, receivemore.ToString().ToLower());
+                                await this.SendbackMessage(state, msg, MessageStatus.DataResponse, receivemore.ToString().ToLower());
                                 break;
                             case "INTERNAL_OCTOVISOR_PROCESS_END":
                                 receivemore = this.EndRemoteProcess(msg.OriginName, msg.Data);
                                 break;
                             default:
-                                receivemore = this.DispatchMessage(state, msg);
+                                receivemore = await this.DispatchMessage(state, msg);
                                 break;
                         }
                     }
 
                     // Wait again for incoming data
                     if (!state.IsDisposed && receivemore)
-                        state.WorkSocket.BeginReceive(state.Buffer, 0,
-                            StateObject.BufferSize, SocketFlags.None, this.ReadCallback, state);
+                        #pragma warning disable CS4014
+                        this.ListenRemoteProcess(state);
+                        #pragma warning restore CS4014
                 }
-            }
-            catch (SocketException e)
-            {
-                this.ProcessSocketException(state, e);
             }
             catch (Exception e)
             {
-                this.Logger.Error(e.ToString());
+                this.ProcessException(state, e);
             }
         }
 
-        private void Send(StateObject state, Message msg)
+        private async Task Send(StateObject state, Message msg)
         {
             try
             {
-                Socket handler = state.WorkSocket;
+                NetworkStream stream = state.Client.GetStream();
                 byte[] bytedata = Encoding.UTF8.GetBytes(msg.Serialize() + MessageFinalizer);
-                handler.Send(bytedata);
-            }
-            catch (SocketException e)
-            {
-                this.ProcessSocketException(state, e);
+                await stream.WriteAsync(bytedata);
+                await stream.FlushAsync();
             }
             catch (Exception e)
             {
-                this.Logger.Error(e.ToString());
+                this.ProcessException(state, e);
             }
         }
 
@@ -241,7 +243,7 @@ namespace Octovisor.Server
             }
             else
             {
-                EndPoint endpoint = state.WorkSocket.RemoteEndPoint;
+                EndPoint endpoint = state.RemoteEndPoint;
                 state.Identifier = name;
                 this.States.Add(endpoint, state);
                 this.EndpointLookup.Add(name, endpoint);
@@ -290,11 +292,11 @@ namespace Octovisor.Server
             }
         }
 
-        private void ForwardMessage(Message msg)
+        private async Task ForwardMessage(Message msg)
         {
             EndPoint endpoint = this.EndpointLookup[msg.TargetName];
             StateObject state = this.States[endpoint];
-            this.Send(state, msg);
+            await this.Send(state, msg);
 
             string sufix = $"| (ID: {msg.Identifier}) {msg.OriginName} -> {msg.TargetName}";
             if (msg.Status == MessageStatus.DataRequest)
@@ -303,7 +305,7 @@ namespace Octovisor.Server
                 this.Logger.Write(ConsoleColor.Green, "Message", $"Forwarded {msg.Length} bytes {sufix}");
         }
 
-        private void SendbackMessage(StateObject state, Message msg,MessageStatus status,string data=null)
+        private async Task SendbackMessage(StateObject state, Message msg,MessageStatus status,string data=null)
         {
             string target  = msg.TargetName;
             msg.TargetName = msg.OriginName;
@@ -311,10 +313,10 @@ namespace Octovisor.Server
             msg.Data       = data ?? msg.Data;
             msg.Status     = status;
 
-            this.Send(state, msg);
+            await this.Send(state, msg);
         }
 
-        private bool DispatchMessage(StateObject state, Message msg)
+        private async Task<bool> DispatchMessage(StateObject state, Message msg)
         {
             if (msg.Status == MessageStatus.MalformedMessageError)
             {
@@ -324,7 +326,7 @@ namespace Octovisor.Server
 
             if (this.EndpointLookup.ContainsKey(msg.TargetName) && this.EndpointLookup.ContainsKey(msg.OriginName))
             {
-                this.ForwardMessage(msg);
+                await this.ForwardMessage(msg);
                 return true;
             }
             else
@@ -337,7 +339,7 @@ namespace Octovisor.Server
                 else
                 {
                     this.Logger.Warn($"{msg.OriginName} tried to forward {msg.Length} bytes to unknown remote process {msg.TargetName}");
-                    this.SendbackMessage(state, msg, MessageStatus.ProcessNotFound);
+                    await this.SendbackMessage(state, msg, MessageStatus.ProcessNotFound);
                     return true;
                 }
             }
