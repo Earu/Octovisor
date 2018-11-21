@@ -27,9 +27,8 @@ namespace Octovisor.Client
         {
             if (!config.IsValid())
                 throw new Exception("Invalid Octovisor client configuration");
-                
+
             this.Config = config;
-            this.Client = new TcpClient();
         }
 
         private void CallErrorEvent(Exception e) => this.OnError?.Invoke(e);
@@ -45,10 +44,8 @@ namespace Octovisor.Client
         {
             try
             {
-                IPHostEntry hostinfo = Dns.GetHostEntry(this.Config.ServerAddress);
-                IPAddress ipadr      = hostinfo.AddressList[0];
-                
-                await this.Client.ConnectAsync(ipadr,this.Config.ServerPort);
+                this.Client = new TcpClient();
+                await this.Client.ConnectAsync(this.Config.ServerAddress,this.Config.ServerPort);
                 this.IsConnected = true;
 
                 await this.Register();
