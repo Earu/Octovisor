@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Net.Sockets;
+using System.Net;
 using System.Text;
 
 namespace Octovisor.Models
@@ -8,18 +9,20 @@ namespace Octovisor.Models
     {
         public const int BufferSize = 256;
 
-        public Socket        WorkSocket   { get; set; }
+        public TcpClient     Client       { get; set; }
         public byte[]        Buffer       { get; }
         public StringBuilder Builder      { get; }
         public string        Identifier   { get; set; }
         public bool          IsDisposed   { get; private set; }
         public int           ParsingDepth { get; set; }
 
-        public StateObject(Socket socket)
+        public EndPoint RemoteEndPoint { get => this.Client.Client.RemoteEndPoint; }
+
+        public StateObject(TcpClient client)
         {
             this.ParsingDepth = 0;
             this.IsDisposed   = false;
-            this.WorkSocket   = socket;
+            this.Client       = client;
             this.Buffer       = new byte[BufferSize];
             this.Builder      = new StringBuilder();
         }
@@ -27,8 +30,8 @@ namespace Octovisor.Models
         public void Dispose()
         {
             this.IsDisposed = true;
-            this.WorkSocket.Shutdown(SocketShutdown.Both);
-            this.WorkSocket.Close();
+            this.Client.Close();
+            this.Client.Dispose();
         }
     }
 }
