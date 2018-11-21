@@ -24,14 +24,16 @@ namespace Octovisor.Tests.Client
 
             client.Connect().Wait();
 
-            client.Send(new Message
-            {
-                Identifier = "meme",
-                Data = null,
-                OriginName = config.ProcessName,
-                TargetName = "Meta1",
-                Status = MessageStatus.DataRequest,
-            });
+            // Test spam to test server
+            for(int i = 0; i < 1000; i++)
+                client.Send(new Message
+                {
+                    Identifier = "meme",
+                    Data = null,
+                    OriginName = config.ProcessName,
+                    TargetName = "Meta1",
+                    Status = MessageStatus.DataRequest,
+                }).Wait();
 
             Console.Read();
         }
