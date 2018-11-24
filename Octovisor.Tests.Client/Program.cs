@@ -15,7 +15,7 @@ namespace Octovisor.Tests.Client
             ClientConfig config = new ClientConfig
             {
                 Token         = "MetaCosntructIsCool",
-                ServerAddress = "3kv.in",
+                ServerAddress = "earu.io",
                 ServerPort    = 6558,
                 ProcessName   = "TestProcess",
             };
