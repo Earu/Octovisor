@@ -60,7 +60,7 @@ local function ReceivingHandler(octoclient)
             octoclient:Printf("Received %d bytes (%s)",data:len(),msg.data)
 
             if msg then
-                if msg.status > MessageStatus.DataRequest then
+                if msg.status ~= MessageStatus.DataRequest then
                     octoclient:HandleDataCallback(msg)
                 else
                     octoclient:HandleDataRequest(msg)
@@ -113,12 +113,13 @@ end
 -- Sends a raw message to the server
 function Octovisor:PushMessage(msg,callback)
     if not type(msg) == "table" then return end
-    callback = callback or FNil
 
-    msg.id = self.CurrentMessageID
-    self.DataCallbacks[self.CurrentMessageID] = callback
+    if not msg.id then
+        msg.id = self.CurrentMessageID
+        self.DataCallbacks[self.CurrentMessageID] = callback
 
-    self.CurrentMessageID = self.CurrentMessageID + 1
+        self.CurrentMessageID = self.CurrentMessageID + 1
+    end
     table.insert(self.MessageQueue,msg)
 
     if not self.Sending and #self.MessageQueue > 0 then
