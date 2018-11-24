@@ -45,6 +45,27 @@ local function SendingHandler(octoclient)
     end
 end
 
+local function HandleReceivedData(octoclient,data)
+    local smgs = {}
+    local processed = false
+
+    while not processed do
+        local startindex,endindex = data:find(MessageFinalizer)
+
+        if not startindex then
+            octoclient.Buffer = octoclient.Buffer .. data
+            processed = true
+        else
+            octoclient.Buffer = octoclient.Buffer .. data:sub(1,startindex)
+            table.insert(smgs,octoclient.Buffer)
+            data = data:sub(endindex,data:len())
+            octoclient.Buffer = ""
+        end
+    end
+
+    return smgs
+end
+
 -- The handler for the receiving coroutine
 local function ReceivingHandler(octoclient)
     while octoclient.IsConnected do
@@ -53,20 +74,23 @@ local function ReceivingHandler(octoclient)
     		data = partial
     		err,partial = nil,nil
     	end
-        if data and err and partial then assert(false,"???") end
+        if data and err and partial then error("???") end
 
         if data then
-            local msg,err = JSON.decode(data:sub(1,data:len() - MessageFinalizer:len()))
-            octoclient:Printf("Received %d bytes (%s)",data:len(),msg.data)
+            local smgs = HandleReceivedData(octoclient,data)
+            for  _,msg in ipairs(smgs) do
+                local msg,err = JSON.decode(data:sub(1,data:len() - MessageFinalizer:len()))
+                octoclient:Printf("Received %d bytes (%s)",data:len(),msg.data)
 
-            if msg then
-                if msg.status ~= MessageStatus.DataRequest then
-                    octoclient:HandleDataCallback(msg)
+                if msg then
+                    if msg.status ~= MessageStatus.DataRequest then
+                        octoclient:HandleDataCallback(msg)
+                    else
+                        octoclient:HandleDataRequest(msg)
+                    end
                 else
-                    octoclient:HandleDataRequest(msg)
+                    octoclient:Printf("Malformed message ??\n%s",err)
                 end
-            else
-                octoclient:Printf("Malformed message ??\n%s",err)
             end
         else
             local config = octoclient.Config
@@ -279,6 +303,7 @@ function OctovisorClient(config)
         Receiving        = false,
         Config           = config,
         BufferSize       = 256,
+        Buffer           = "",
         CurrentMessageID = 0,
         MessageQueue     = {},
         DataResponses    = {},
