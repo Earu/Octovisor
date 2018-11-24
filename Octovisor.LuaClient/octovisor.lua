@@ -58,7 +58,9 @@ local function HandleReceivedData(octoclient,data)
         else
             octoclient.Buffer = octoclient.Buffer .. data:sub(1,startindex)
             table.insert(smgs,octoclient.Buffer)
-            data = data:sub(endindex,data:len())
+
+            local len = data:len()
+            data = len > endindex and data:sub(endindex + 1,len) or ""
             octoclient.Buffer = ""
         end
     end
