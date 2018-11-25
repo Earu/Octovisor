@@ -3,16 +3,14 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using Octovisor.Models;
-using System.IO;
 
 namespace Octovisor.Server
 {
     public class OctovisorServer
     {
-        private static readonly string MessageFinalizer = "__END__";
+        private static readonly string MessageFinalizer = "\0";
 
         private bool ShouldRun;
         private TcpListener Listener;
@@ -84,10 +82,8 @@ namespace Octovisor.Server
                 this.Logger.Write(ConsoleColor.Magenta, "Server",
                     $"Listening for connections at {endpoint}...");
 
-                // No await = no block
                 while (this.ShouldRun)
                     await this.ProcessConnection();
-
 
                 foreach (KeyValuePair<string, EndPoint> kv in this.EndpointLookup)
                     this.EndRemoteProcess(kv.Key, this.Config.Token);
@@ -216,11 +212,6 @@ namespace Octovisor.Server
                 this.Logger.Warn($"Attempt to register a remote process ({name}) with an invalid token.");
                 return false;
             }
-            else if (this.EndpointLookup.ContainsKey(name))
-            {
-                this.Logger.Warn($"Cannot register remote process with an existing name ({name}). Discarding.");
-                return false;
-            }
             else if (this.States.Count >= this.Config.MaximumProcesses)
             {
                 this.Logger.Error($"Could not register a remote process ({name}). Exceeding the maximum amount of remote processes.");
@@ -228,7 +219,16 @@ namespace Octovisor.Server
             }
             else
             {
-                EndPoint endpoint = state.RemoteEndPoint;
+                EndPoint endpoint;
+
+                if (this.EndpointLookup.ContainsKey(name))
+                {
+                    this.Logger.Warn($"Overriding a remote process ({name})");
+                    endpoint = this.EndpointLookup[name];
+                    this.EndRemoteProcess(endpoint);
+                }
+
+                endpoint = state.RemoteEndPoint;
                 state.Identifier = name;
                 this.States.Add(endpoint, state);
                 this.EndpointLookup.Add(name, endpoint);

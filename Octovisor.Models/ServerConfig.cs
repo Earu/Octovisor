@@ -13,7 +13,6 @@
         public int ServerPort { get; set; }
         public int MaximumProcesses { get; set; }
 
-        //Ugly but cba to create properties for everything
         public bool IsValid()
         {
             bool valid = !string.IsNullOrWhiteSpace(this.Token);

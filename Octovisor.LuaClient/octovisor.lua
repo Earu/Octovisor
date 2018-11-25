@@ -16,7 +16,7 @@ local MessageStatus = {
     UnknownMessageIdentifier = 7,
 }
 
-local MessageFinalizer = "__END__"
+local MessageFinalizer = "\0"
 local FNil = function() end
 
 -- Your typical printf function
@@ -132,6 +132,7 @@ function Octovisor:Close()
     if not self.IsConnected then return end
     self:Printf("Closing connection @ %s:%d",self.Config.ServerAddress,self.Config.ServerPort)
     self.IsConnected = false
+    self.IsRegistered = false
 
     return self.Socket:close()
 end
@@ -194,6 +195,7 @@ function Octovisor:Unregister()
         data       = self.Config.Token,
         status     = MessageStatus.DataRequest,
     })
+    self.IsRegistered = false
 end
 
 local RemoteProcess = {}
