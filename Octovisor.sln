@@ -9,8 +9,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Octovisor.Client", "Octovis
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Octovisor.Models", "Octovisor.Models\Octovisor.Models.csproj", "{465E4A56-039F-4539-B320-68AD4F3ECE1F}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Octovisor.Tests.Server", "Octovisor.Tests.Server\Octovisor.Tests.Server.csproj", "{9349421B-39A3-42B3-8F11-9C7CBA7666D8}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Octovisor.Tests.Client", "Octovisor.Tests.Client\Octovisor.Tests.Client.csproj", "{77570E73-C2BA-40CE-AA58-05815FB63C9E}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Octovisor.Tests", "Octovisor.Tests", "{FD0C5B9B-F0ED-4492-985C-C79796B10A32}"
@@ -33,10 +31,6 @@ Global
 		{465E4A56-039F-4539-B320-68AD4F3ECE1F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{465E4A56-039F-4539-B320-68AD4F3ECE1F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{465E4A56-039F-4539-B320-68AD4F3ECE1F}.Release|Any CPU.Build.0 = Release|Any CPU
-		{9349421B-39A3-42B3-8F11-9C7CBA7666D8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{9349421B-39A3-42B3-8F11-9C7CBA7666D8}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{9349421B-39A3-42B3-8F11-9C7CBA7666D8}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{9349421B-39A3-42B3-8F11-9C7CBA7666D8}.Release|Any CPU.Build.0 = Release|Any CPU
 		{77570E73-C2BA-40CE-AA58-05815FB63C9E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{77570E73-C2BA-40CE-AA58-05815FB63C9E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{77570E73-C2BA-40CE-AA58-05815FB63C9E}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -46,7 +40,6 @@ Global
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
-		{9349421B-39A3-42B3-8F11-9C7CBA7666D8} = {FD0C5B9B-F0ED-4492-985C-C79796B10A32}
 		{77570E73-C2BA-40CE-AA58-05815FB63C9E} = {FD0C5B9B-F0ED-4492-985C-C79796B10A32}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
