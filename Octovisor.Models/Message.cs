@@ -44,7 +44,7 @@ namespace Octovisor.Models
             {
                 return JsonConvert.DeserializeObject<Message>(json);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 return new Message
                 {
@@ -52,7 +52,7 @@ namespace Octovisor.Models
                     OriginName = "UNKNOWN_ORIGIN",
                     TargetName = "UNKNOWN_TARGET",
                     Identifier = "UNKNOWN",
-                    Data = json,
+                    Data = ex.Message,
                     Status = MessageStatus.MalformedMessageError,
                 };
             }

@@ -12,26 +12,26 @@ namespace Octovisor.Tests.Client
         {
             Console.Title = "Octovisor Client";
 
-            ClientConfig config = new ClientConfig
+            Config config = new Config
             {
-                Token         = "MetaCosntructIsCool",
-                ServerAddress = "127.0.0.1",
-                ServerPort    = 6558,
-                ProcessName   = "TestProcess",
+                Token = "cool",
+                Address = "127.0.0.1",
+                Port = 4559,
+                ProcessName = "TestProcess",
             };
 
             OctovisorClient client = new OctovisorClient(config);
-            client.OnError += e    => Console.WriteLine(e);
-            client.Log     += log  => Console.WriteLine(log);
+            client.ExceptionThrown += e => Console.WriteLine(e);
+            client.Log += log => Console.WriteLine(log);
 
             await client.Connect();
 
             // Test spam to test server
-            for(int i = 0; i < 100; i++)
+            for(int i = 0; i < 10; i++)
                 await client.Send(new Message
                 {
                     Identifier = "meme",
-                    Data = null,
+                    Data = string.Empty,
                     OriginName = config.ProcessName,
                     TargetName = "Meta1",
                     Status = MessageStatus.DataRequest,

@@ -10,36 +10,52 @@ namespace Octovisor.Client
 {
     public class OctovisorClient
     {
-        private static readonly string MessageFinalizer = "\0";
-        private static readonly int BufferSize = 256;
-        private double CurrentMessageID = 0;
+        private double _CurrentMessageID = 0;
 
-        public event Action<Exception> OnError;
+        /// <summary>
+        /// Fired whenever an exception is thrown
+        /// </summary>
+        public event Action<Exception> ExceptionThrown;
+
+        /// <summary>
+        /// Fired when something is logged
+        /// </summary>
         public event Action<string> Log;
        
-        private TcpClient Client;
+        private TcpClient _Client;
 
-        private readonly ClientConfig Config;
-        private readonly Dictionary<double, MessageHandle> MessageCallbacks;
-        private readonly StringBuilder Builder;
-        private readonly byte[] Buffer;
+        private readonly Config _Config;
+        private readonly Dictionary<double, MessageHandle> _MessageCallbacks;
+        private readonly StringBuilder _Builder;
+        private readonly byte[] _Buffer;
 
+        /// <summary>
+        /// Gets whether or not this instance is connected 
+        /// </summary>
         public bool IsConnected { get; private set; }
+
+        /// <summary>
+        /// Gets whether or not this instance is registered
+        /// </summary>
         public bool IsRegistered { get; private set; }
 
-        public OctovisorClient(ClientConfig config)
+        /// <summary>
+        /// Creates a new instance of OctovisorClient
+        /// </summary>
+        /// <param name="config">A config object containing your token and other settings</param>
+        public OctovisorClient(Config config)
         {
             if (!config.IsValid())
                 throw new Exception("Invalid Octovisor client configuration");
 
-            this.Config = config;
-            this.MessageCallbacks = new Dictionary<double, MessageHandle>();
-            this.Builder = new StringBuilder();
-            this.Buffer = new byte[BufferSize];
+            this._Config = config;
+            this._MessageCallbacks = new Dictionary<double, MessageHandle>();
+            this._Builder = new StringBuilder();
+            this._Buffer = new byte[config.BufferSize];
         }
 
-        private void CallErrorEvent(Exception e) => this.OnError?.Invoke(e);
-        private void CallLogEvent(string log)    => this.Log?.Invoke(log);
+        private void ExceptionEvent(Exception e) => this.ExceptionThrown?.Invoke(e);
+        private void LogEvent(string log) => this.Log?.Invoke(log);
 
         /// <summary>
         /// Connects to the remote octovisor server
@@ -51,8 +67,8 @@ namespace Octovisor.Client
         {
             try
             {
-                this.Client = new TcpClient();
-                await this.Client.ConnectAsync(this.Config.ServerAddress,this.Config.ServerPort);
+                this._Client = new TcpClient();
+                await this._Client.ConnectAsync(this._Config.Address, this._Config.Port);
                 this.IsConnected = true;
 
                 await this.Register();
@@ -60,50 +76,47 @@ namespace Octovisor.Client
             catch(Exception e)
             {
                 this.IsConnected = false;
-                this.CallErrorEvent(e);
+                this.ExceptionEvent(e);
             }
         }
 
-        private List<string> HandleReceivedData(string data)
+        private List<Message> HandleReceivedData(string data)
         {
             List<string> msgdata = new List<string>();
             foreach (char c in data)
             {
-                this.Builder.Append(c);
+                this._Builder.Append(c);
 
-                string current = this.Builder.ToString();
-                int endlen = MessageFinalizer.Length;
-                if (current.Length >= endlen && current.Substring(current.Length - endlen, endlen) == MessageFinalizer)
+                string current = this._Builder.ToString();
+                int endlen = this._Config.MessageFinalizer.Length;
+                if (current.Length >= endlen && current.Substring(current.Length - endlen, endlen) == this._Config.MessageFinalizer)
                 {
-                    msgdata.Add(this.Builder.ToString());
-                    this.Builder.Clear();
+                    msgdata.Add(this._Builder.ToString());
+                    this._Builder.Clear();
                 }
             }
 
-            return msgdata;
+            return msgdata.Select(Message.Deserialize).ToList();
         }
 
         private async Task Receive()
         {
-            NetworkStream stream = this.Client.GetStream();
+            NetworkStream stream = this._Client.GetStream();
             while(this.IsConnected)
             {
-                int bytesread = await stream.ReadAsync(this.Buffer, 0, BufferSize);
+                int bytesread = await stream.ReadAsync(this._Buffer, 0, this._Config.BufferSize);
                 if(bytesread > 0)
                 {
-                    string data = Encoding.UTF8.GetString(this.Buffer);
-                    List<Message> messages = this.HandleReceivedData(data)
-                        .Select(x => Message.Deserialize(x))
-                        .ToList();
-
+                    string data = Encoding.UTF8.GetString(this._Buffer);
+                    List<Message> messages = this.HandleReceivedData(data);
                     foreach(Message msg in messages)
                     {
-                        if(this.MessageCallbacks.ContainsKey(msg.ID))
+                        if(this._MessageCallbacks.ContainsKey(msg.ID))
                         {
-                            MessageHandle handle = this.MessageCallbacks[msg.ID];
+                            MessageHandle handle = this._MessageCallbacks[msg.ID];
                             if (msg.Status != MessageStatus.DataRequest)
                             {
-
+                                
                             }
                             else
                             {
@@ -119,30 +132,31 @@ namespace Octovisor.Client
         {
             await this.Send(new Message
             {
-                OriginName = this.Config.ProcessName,
+                OriginName = this._Config.ProcessName,
                 TargetName = "SERVER",
                 Identifier = "INTERNAL_OCTOVISOR_PROCESS_INIT",
-                Data       = this.Config.Token,
+                Data       = this._Config.Token,
                 Status     = MessageStatus.DataRequest,
             });
 
-            this.CallLogEvent("Registering on server");
+            this.LogEvent("Registering on server");
         }
 
         private async Task Unregister()
         {
             await this.Send(new Message
             {
-                OriginName = this.Config.ProcessName,
+                OriginName = this._Config.ProcessName,
                 TargetName = "SERVER",
                 Identifier = "INTERNAL_OCTOVISOR_PROCESS_END",
-                Data = this.Config.Token,
+                Data = this._Config.Token,
                 Status = MessageStatus.DataRequest,
             });
 
-            this.CallLogEvent("Ending on server");
+            this.LogEvent("Ending on server");
         }
 
+        //to switch to private / internal
         public async Task Send(Message msg)
         {
             if (!this.IsConnected) return;
@@ -150,22 +164,22 @@ namespace Octovisor.Client
 
             try
             {
-                msg.ID = this.CurrentMessageID++;
+                msg.ID = this._CurrentMessageID++;
                 string data = msg.Serialize();
-                data += MessageFinalizer;
+                data += this._Config.MessageFinalizer;
                 byte[] bytedata = Encoding.UTF8.GetBytes(data);
 
-                this.CallLogEvent($"Sending {data.Length} bytes\n{data}");
+                this.LogEvent($"Sending {data.Length} bytes\n{data}");
                 //this.MessageCallbacks[msg.ID] = new MessageHandle(typeof(T),tcs);
 
-                NetworkStream stream = this.Client.GetStream();
+                NetworkStream stream = this._Client.GetStream();
                 await stream.WriteAsync(bytedata, 0, bytedata.Length);
                 await stream.FlushAsync();
             }
             catch(Exception e)
             {
                 //tcs.SetException(e);
-                this.CallErrorEvent(e);
+                this.ExceptionEvent(e);
             }
 
             //await tcs.Task;

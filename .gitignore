@@ -272,3 +272,5 @@ Octovisor\.Server/\.DS_Store
 Octovisor\.Tests\.Server/logs\.txt
 
 \.vscode/
+
+Octovisor\.Server/config\.yaml

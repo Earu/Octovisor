@@ -1,0 +1,5 @@
+﻿---
+Token: "cool"
+Port: 4559
+MaxProcesses: 255
+MessageFinalizer: "\0"
