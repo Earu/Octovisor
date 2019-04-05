@@ -16,7 +16,7 @@ namespace Octovisor.Server
         private Task _InternalTask;
 
         private readonly string _MessageFinalizer;
-        private readonly Dictionary<EndPoint, StateObject> _States;
+        private readonly Dictionary<EndPoint, ClientState> _States;
         private readonly Dictionary<string, EndPoint> _EndpointLookup;
         private readonly Logger _Logger;
 
@@ -28,7 +28,7 @@ namespace Octovisor.Server
             this._ShouldRun        = true;
             this._MessageFinalizer = Config.Instance.MessageFinalizer;
             this._Logger           = new Logger();
-            this._States           = new Dictionary<EndPoint, StateObject>();
+            this._States           = new Dictionary<EndPoint, ClientState>();
             this._EndpointLookup   = new Dictionary<string, EndPoint>();
         }
 
@@ -106,14 +106,14 @@ namespace Octovisor.Server
         private async Task ProcessConnection()
         {
             TcpClient client = await this._Listener.AcceptTcpClientAsync();
-            StateObject state = new StateObject(client);
+            ClientState state = new ClientState(client);
 
             #pragma warning disable CS4014
             this.ListenRemoteProcess(state);
             #pragma warning restore CS4014
         }
 
-        private void ProcessException(StateObject state,Exception e)
+        private void ProcessException(ClientState state,Exception e)
         {
             SocketException se = null;
             if(e is SocketException)
@@ -131,7 +131,7 @@ namespace Octovisor.Server
                 this._Logger.Error(e.ToString());
         }
 
-        private List<string> HandleReceivedData(StateObject state, int bytesread)
+        private List<string> HandleReceivedData(ClientState state, int bytesread)
         {
             string content = Encoding.UTF8.GetString(state.Buffer, 0, bytesread);
             List<string> msgdata = new List<string>();
@@ -151,7 +151,7 @@ namespace Octovisor.Server
             return msgdata;
         }
 
-        private async Task ListenRemoteProcess(StateObject state)
+        private async Task ListenRemoteProcess(ClientState state)
         {
             try
             {
@@ -196,7 +196,7 @@ namespace Octovisor.Server
             }
         }
 
-        private async Task Send(StateObject state, Message msg)
+        private async Task Send(ClientState state, Message msg)
         {
             try
             {
@@ -211,7 +211,7 @@ namespace Octovisor.Server
             }
         }
 
-        private bool RegisterRemoteProcess(StateObject state, string name, string token)
+        private bool RegisterRemoteProcess(ClientState state, string name, string token)
         {
             if (token != Config.Instance.Token)
             {
@@ -259,7 +259,7 @@ namespace Octovisor.Server
             else
             {
                 EndPoint endpoint = this._EndpointLookup[name];
-                StateObject state = this._States[endpoint];
+                ClientState state = this._States[endpoint];
                 state.Dispose();
                 this._States.Remove(endpoint);
                 this._EndpointLookup.Remove(name);
@@ -274,7 +274,7 @@ namespace Octovisor.Server
         {
             if(this._States.ContainsKey(endpoint))
             {
-                StateObject state = this._States[endpoint];
+                ClientState state = this._States[endpoint];
                 state.Dispose();
                 this._States.Remove(endpoint);
                 this._EndpointLookup.Remove(state.Identifier);
@@ -286,7 +286,7 @@ namespace Octovisor.Server
         private async Task ForwardMessage(Message msg)
         {
             EndPoint endpoint = this._EndpointLookup[msg.TargetName];
-            StateObject state = this._States[endpoint];
+            ClientState state = this._States[endpoint];
             await this.Send(state, msg);
 
 
@@ -302,7 +302,7 @@ namespace Octovisor.Server
             }
         }
 
-        private async Task SendbackMessage(StateObject state, Message msg,MessageStatus status,string data=null)
+        private async Task SendbackMessage(ClientState state, Message msg, MessageStatus status, string data=null)
         {
             string target  = msg.TargetName;
             msg.TargetName = msg.OriginName;
@@ -313,7 +313,7 @@ namespace Octovisor.Server
             await this.Send(state, msg);
         }
 
-        private async Task<bool> DispatchMessage(StateObject state, Message msg)
+        private async Task<bool> DispatchMessage(ClientState state, Message msg)
         {
             if (msg.Status == MessageStatus.MalformedMessageError)
             {

@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Octovisor.Models
 {
-    public class StateObject : IDisposable
+    public class ClientState : IDisposable
     {
         public const int BufferSize = 256;
 
@@ -18,7 +18,7 @@ namespace Octovisor.Models
 
         public EndPoint RemoteEndPoint { get => this.Client.Client.RemoteEndPoint; }
 
-        public StateObject(TcpClient client)
+        public ClientState(TcpClient client)
         {
             this.ParsingDepth = 0;
             this.IsDisposed   = false;

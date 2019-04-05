@@ -28,6 +28,7 @@ namespace Octovisor.Client
         private readonly Dictionary<double, MessageHandle> _MessageCallbacks;
         private readonly StringBuilder _Builder;
         private readonly byte[] _Buffer;
+        private readonly MessageFactory _MessageFactory;
 
         /// <summary>
         /// Gets whether or not this instance is connected 
@@ -52,6 +53,7 @@ namespace Octovisor.Client
             this._MessageCallbacks = new Dictionary<double, MessageHandle>();
             this._Builder = new StringBuilder();
             this._Buffer = new byte[config.BufferSize];
+            this._MessageFactory = new MessageFactory();
         }
 
         private void ExceptionEvent(Exception e) => this.ExceptionThrown?.Invoke(e);
@@ -130,29 +132,13 @@ namespace Octovisor.Client
 
         private async Task Register()
         {
-            await this.Send(new Message
-            {
-                OriginName = this._Config.ProcessName,
-                TargetName = "SERVER",
-                Identifier = "INTERNAL_OCTOVISOR_PROCESS_INIT",
-                Data       = this._Config.Token,
-                Status     = MessageStatus.DataRequest,
-            });
-
+            await this.Send(this._MessageFactory.CreateRegisterMessage(this._Config.ProcessName, this._Config.Token));
             this.LogEvent("Registering on server");
         }
 
         private async Task Unregister()
         {
-            await this.Send(new Message
-            {
-                OriginName = this._Config.ProcessName,
-                TargetName = "SERVER",
-                Identifier = "INTERNAL_OCTOVISOR_PROCESS_END",
-                Data = this._Config.Token,
-                Status = MessageStatus.DataRequest,
-            });
-
+            await this.Send(this._MessageFactory.CreateUnregisterMessage(this._Config.ProcessName, this._Config.Token));
             this.LogEvent("Ending on server");
         }
 
