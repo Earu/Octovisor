@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Octovisor.Models;
 
@@ -25,10 +26,10 @@ namespace Octovisor.Client
         private TcpClient _Client;
 
         private readonly Config _Config;
-        private readonly Dictionary<double, MessageHandle> _MessageCallbacks;
         private readonly StringBuilder _Builder;
         private readonly byte[] _Buffer;
         private readonly MessageFactory _MessageFactory;
+        private readonly Thread _ReceivingThread;
 
         /// <summary>
         /// Gets whether or not this instance is connected 
@@ -50,10 +51,10 @@ namespace Octovisor.Client
                 throw new Exception("Invalid Octovisor client configuration");
 
             this._Config = config;
-            this._MessageCallbacks = new Dictionary<double, MessageHandle>();
             this._Builder = new StringBuilder();
             this._Buffer = new byte[config.BufferSize];
             this._MessageFactory = new MessageFactory();
+            this._ReceivingThread = new Thread(async () => await this.Receive()); 
         }
 
         private void ExceptionEvent(Exception e) => this.ExceptionThrown?.Invoke(e);
@@ -74,6 +75,7 @@ namespace Octovisor.Client
                 this.IsConnected = true;
 
                 await this.Register();
+                this._ReceivingThread.Start();
             }
             catch(Exception e)
             {
@@ -91,14 +93,17 @@ namespace Octovisor.Client
 
                 string current = this._Builder.ToString();
                 int endlen = this._Config.MessageFinalizer.Length;
-                if (current.Length >= endlen && current.Substring(current.Length - endlen, endlen) == this._Config.MessageFinalizer)
+                if (current.Length >= endlen && current.Substring(current.Length - endlen, endlen).Equals(this._Config.MessageFinalizer))
                 {
-                    msgdata.Add(this._Builder.ToString());
+                    msgdata.Add(current.Substring(0, current.Length - endlen));
                     this._Builder.Clear();
                 }
             }
 
-            return msgdata.Select(Message.Deserialize).ToList();
+            return msgdata
+                .Select(Message.Deserialize)
+                .Where(msg => msg != null)
+                .ToList();
         }
 
         private async Task Receive()
@@ -107,26 +112,14 @@ namespace Octovisor.Client
             while(this.IsConnected)
             {
                 int bytesread = await stream.ReadAsync(this._Buffer, 0, this._Config.BufferSize);
-                if(bytesread > 0)
+                if (bytesread <= 0) continue;
+                
+                string data = Encoding.UTF8.GetString(this._Buffer);
+                List<Message> messages = this.HandleReceivedData(data);
+                foreach(Message msg in messages)
                 {
-                    string data = Encoding.UTF8.GetString(this._Buffer);
-                    List<Message> messages = this.HandleReceivedData(data);
-                    foreach(Message msg in messages)
-                    {
-                        if(this._MessageCallbacks.ContainsKey(msg.ID))
-                        {
-                            MessageHandle handle = this._MessageCallbacks[msg.ID];
-                            if (msg.Status != MessageStatus.DataRequest)
-                            {
-                                
-                            }
-                            else
-                            {
-
-                            }
-                        }
-                    }
-                }
+                    this.LogEvent($"{msg.ID} | {msg.Identifier} | {msg.Status}");     
+                }  
             }
         }
 
@@ -151,8 +144,7 @@ namespace Octovisor.Client
             try
             {
                 msg.ID = this._CurrentMessageID++;
-                string data = msg.Serialize();
-                data += this._Config.MessageFinalizer;
+                string data = $"{msg.Serialize()}{this._Config.MessageFinalizer}";
                 byte[] bytedata = Encoding.UTF8.GetBytes(data);
 
                 this.LogEvent($"Sending {data.Length} bytes\n{data}");

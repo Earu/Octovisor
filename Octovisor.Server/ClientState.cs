@@ -3,7 +3,7 @@ using System.Net.Sockets;
 using System.Net;
 using System.Text;
 
-namespace Octovisor.Models
+namespace Octovisor.Server
 {
     public class ClientState : IDisposable
     {
