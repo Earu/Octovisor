@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -105,7 +106,17 @@ namespace Octovisor.Server
 
         private async Task ProcessConnection()
         {
-            TcpClient client = await this._Listener.AcceptTcpClientAsync();
+            TcpClient client = null;
+            try
+            {
+                client = await this._Listener.AcceptTcpClientAsync();
+            }
+            catch (Exception e)
+            {
+                this.OnException(e);
+            }
+
+            if (client == null) return;
             ClientState state = new ClientState(client);
 
             #pragma warning disable CS4014
@@ -113,25 +124,41 @@ namespace Octovisor.Server
             #pragma warning restore CS4014
         }
 
-        private void ProcessException(ClientState state,Exception e)
+        private void HandleException(Exception e, Action onconnectionreset)
         {
             SocketException se = null;
-            if(e is SocketException)
+            if (e is SocketException)
                 se = (SocketException)e;
-            else if(e.InnerException is SocketException)
+            else if (e.InnerException is SocketException)
                 se = (SocketException)e.InnerException;
 
             //10054
             if (se != null && se.SocketErrorCode == SocketError.ConnectionReset)
             {
-                this._Logger.Nice("Process", ConsoleColor.Red, $"{state.Identifier} was forcibly closed");
-                this.EndRemoteProcess(state.RemoteEndPoint);
+                onconnectionreset();
             }
             else
                 this._Logger.Error(e.ToString());
         }
 
-        private List<string> HandleReceivedData(ClientState state, int bytesread)
+        private void OnClientStateException(ClientState state, Exception e)
+        {
+            this.HandleException(e, () =>
+            {
+                this._Logger.Nice("Process", ConsoleColor.Red, $"{state.Identifier} was forcibly closed");
+                this.EndRemoteProcess(state.RemoteEndPoint);
+            });
+        }
+
+        private void OnException(Exception e)
+        {
+            this.HandleException(e, () =>
+            {
+                this._Logger.Nice("Process", ConsoleColor.Red, "A remote process was forcibly closed when connecting");
+            });
+        }
+
+        private List<Message> HandleReceivedData(ClientState state, int bytesread)
         {
             string content = Encoding.UTF8.GetString(state.Buffer, 0, bytesread);
             List<string> msgdata = new List<string>();
@@ -141,14 +168,16 @@ namespace Octovisor.Server
 
                 string current = state.Builder.ToString();
                 int endlen = this._MessageFinalizer.Length;
-                if (current.Length >= endlen && current.Substring(current.Length - endlen, endlen) == this._MessageFinalizer)
+                if (current.Length >= endlen && current.Substring(current.Length - endlen, endlen).Equals(this._MessageFinalizer))
                 {
-                    msgdata.Add(state.Builder.ToString());
+                    msgdata.Add(current.Substring(0, current.Length - endlen));
                     state.Builder.Clear();
                 }
             }
 
-            return msgdata;
+            return msgdata
+                .Select(Message.Deserialize)
+                .ToList();
         }
 
         private async Task ListenRemoteProcess(ClientState state)
@@ -158,41 +187,36 @@ namespace Octovisor.Server
                 TcpClient client = state.Client;
                 NetworkStream stream = client.GetStream();
                 int bytesread = await stream.ReadAsync(state.Buffer);
-
-                if (bytesread > 0)
+                if (bytesread <= 0) return;
+  
+                List<Message> msgs = this.HandleReceivedData(state, bytesread);
+                bool receivemore = false;
+                foreach(Message msg in msgs)
                 {
-                    List<string> msgdata = this.HandleReceivedData(state, bytesread);
-                    bool receivemore = false;
-
-                    foreach(string data in msgdata)
+                    switch (msg.Identifier)
                     {
-                        string smsg = data.Substring(0, data.Length - this._MessageFinalizer.Length);
-                        Message msg = Message.Deserialize(smsg);
-                        switch (msg.Identifier)
-                        {
-                            case "INTERNAL_OCTOVISOR_PROCESS_INIT":
-                                receivemore = this.RegisterRemoteProcess(state, msg.OriginName, msg.Data);
-                                await this.SendbackMessage(state, msg, MessageStatus.DataResponse, receivemore.ToString().ToLower());
-                                break;
-                            case "INTERNAL_OCTOVISOR_PROCESS_END":
-                                receivemore = this.EndRemoteProcess(msg.OriginName, msg.Data);
-                                break;
-                            default:
-                                receivemore = await this.DispatchMessage(state, msg);
-                                break;
-                        }
+                        case "INTERNAL_OCTOVISOR_PROCESS_INIT":
+                            receivemore = this.RegisterRemoteProcess(state, msg.OriginName, msg.Data);
+                            await this.SendbackMessage(state, msg, MessageStatus.DataResponse, receivemore.ToString().ToLower());
+                            break;
+                        case "INTERNAL_OCTOVISOR_PROCESS_END":
+                            receivemore = this.EndRemoteProcess(msg.OriginName, msg.Data);
+                            break;
+                        default:
+                            receivemore = await this.DispatchMessage(state, msg);
+                            break;
                     }
-
-                    // Wait again for incoming data
-                    if (!state.IsDisposed && receivemore)
-                        #pragma warning disable CS4014
-                        this.ListenRemoteProcess(state);
-                        #pragma warning restore CS4014
                 }
+
+                // Wait again for incoming data
+                if (!state.IsDisposed && receivemore)
+                    #pragma warning disable CS4014
+                    this.ListenRemoteProcess(state);
+                    #pragma warning restore CS4014
             }
             catch (Exception e)
             {
-                this.ProcessException(state, e);
+                this.OnClientStateException(state, e);
             }
         }
 
@@ -201,13 +225,13 @@ namespace Octovisor.Server
             try
             {
                 NetworkStream stream = state.Client.GetStream();
-                byte[] bytedata = Encoding.UTF8.GetBytes(msg.Serialize() + this._MessageFinalizer);
+                byte[] bytedata = Encoding.UTF8.GetBytes($"{msg.Serialize()}{this._MessageFinalizer}");
                 await stream.WriteAsync(bytedata);
                 await stream.FlushAsync();
             }
             catch (Exception e)
             {
-                this.ProcessException(state, e);
+                this.OnClientStateException(state, e);
             }
         }
 
