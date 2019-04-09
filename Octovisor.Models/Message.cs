@@ -38,6 +38,18 @@ namespace Octovisor.Models
         [JsonIgnore]
         public int Length { get => this.Data != null ? this.Data.Length : 0; }
 
+        public T GetData<T>()
+        {
+            try
+            {
+                return JsonConvert.DeserializeObject<T>(this.Data);
+            }
+            catch
+            {
+                return default(T);
+            }
+        }
+
         public static Message Deserialize(string json)
         {
             try
@@ -52,7 +64,7 @@ namespace Octovisor.Models
                     OriginName = "UNKNOWN_ORIGIN",
                     TargetName = "UNKNOWN_TARGET",
                     Identifier = "UNKNOWN",
-                    Data = ex.Message,
+                    Data = $"EXCEPTION: {ex.Message}\nDATA: {json}",
                     Status = MessageStatus.MalformedMessageError,
                 };
             }

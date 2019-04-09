@@ -1,9 +1,9 @@
-using Octovisor.Client;
+﻿using Octovisor.Client;
 using Octovisor.Models;
 using System;
 using System.Threading.Tasks;
 
-namespace Octovisor.Tests.Client
+namespace Octovisor.Tests.Client2
 {
     class Program
     {
@@ -14,10 +14,10 @@ namespace Octovisor.Tests.Client
 
             Config config = new Config
             {
-                Token = "cool",
+                Token = "you're cool",
                 Address = "127.0.0.1",
-                Port = 4559,
-                ProcessName = "TestProcess",
+                Port = 6558,
+                ProcessName = "Meta2",
             };
 
             OctovisorClient client = new OctovisorClient(config);
@@ -25,18 +25,6 @@ namespace Octovisor.Tests.Client
             client.Log += log => Console.WriteLine(log);
 
             await client.Connect();
-
-            // Test spam to test server
-            for(int i = 0; i < 10; i++)
-                await client.Send(new Message
-                {
-                    Identifier = "meme",
-                    Data = "LOL",
-                    OriginName = config.ProcessName,
-                    TargetName = "Meta2",
-                    Status = MessageStatus.DataRequest,
-                });
-
             await Task.Delay(-1);
         }
     }
