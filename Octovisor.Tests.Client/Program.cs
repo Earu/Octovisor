@@ -1,5 +1,4 @@
 using Octovisor.Client;
-using Octovisor.Models;
 using System;
 using System.Threading.Tasks;
 
@@ -20,12 +19,13 @@ namespace Octovisor.Tests.Client
                 ProcessName = "TestProcess",
             };
 
-            BaseClient client = new OctoClient(config);
+            OctoClient client = new OctoClient(config);
             client.ExceptionThrown += e => Console.WriteLine(e);
             client.Log += log => Console.WriteLine(log);
 
             await client.ConnectAsync();
-            client.
+            for (int i = 0; i < 10; i++)
+                await client.WriteValueAsync("meme", "Meta2", 1);
 
             await Task.Delay(-1);
         }

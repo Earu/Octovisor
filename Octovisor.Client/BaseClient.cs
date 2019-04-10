@@ -37,7 +37,6 @@ namespace Octovisor.Client
         private readonly byte[] _Buffer;
         private readonly Config _Config;
         private readonly MessageReader _Reader;
-        private readonly MessageFactory _MessageFactory;
         private readonly Thread _ReceivingThread;
 
         /// <summary>
@@ -64,8 +63,9 @@ namespace Octovisor.Client
             this._Config = config;
             this._Reader = new MessageReader(config.MessageFinalizer);
             this._Buffer = new byte[config.BufferSize];
-            this._MessageFactory = new MessageFactory();
-            this._ReceivingThread = new Thread(async () => await this.Receive()); 
+            this._ReceivingThread = new Thread(async () => await this.Receive());
+
+            this.MessageFactory = new MessageFactory();
         }
 
         private void ExceptionEvent(Exception e) => this.ExceptionThrown?.Invoke(e);
@@ -97,9 +97,6 @@ namespace Octovisor.Client
             }
         }
 
-        private List<Message> HandleReceivedData(string data)
-            => this._Reader.Read(data);
-
         private void ClearBuffer()
             => Array.Clear(this._Buffer, 0, this._Buffer.Length);
 
@@ -112,27 +109,27 @@ namespace Octovisor.Client
                 if (bytesread <= 0) continue;
                 
                 string data = Encoding.UTF8.GetString(this._Buffer);
-                List<Message> messages = this.HandleReceivedData(data);
-                foreach(Message msg in messages)
+                List<Message> messages = this._Reader.Read(data);
+                this.ClearBuffer();
+
+                foreach (Message msg in messages)
                 {
                     this.LogEvent($"{msg.ID} | {msg.Identifier} | {msg.Status}");
                     if (msg.Status == MessageStatus.MalformedMessageError)
                         this.LogEvent(msg.Data);
                 }
-
-                this.ClearBuffer();
             }
         }
 
         private async Task Register()
         {
-            await this.SendAsync(this._MessageFactory.CreateRegisterMessage(this._Config.ProcessName, this._Config.Token));
+            await this.SendAsync(this.MessageFactory.CreateRegisterMessage(this._Config.ProcessName, this._Config.Token));
             this.LogEvent("Registering on server");
         }
 
         private async Task Unregister()
         {
-            await this.SendAsync(this._MessageFactory.CreateUnregisterMessage(this._Config.ProcessName, this._Config.Token));
+            await this.SendAsync(this.MessageFactory.CreateUnregisterMessage(this._Config.ProcessName, this._Config.Token));
             this.LogEvent("Ending on server");
         }
 

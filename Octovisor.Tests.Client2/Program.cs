@@ -20,7 +20,7 @@ namespace Octovisor.Tests.Client2
                 ProcessName = "Meta2",
             };
 
-            BaseClient client = new BaseClient(config);
+            BaseClient client = new OctoClient(config);
             client.ExceptionThrown += e => Console.WriteLine(e);
             client.Log += log => Console.WriteLine(log);
 
