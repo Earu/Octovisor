@@ -1,16 +1,15 @@
-﻿using System;
+﻿using Octovisor.Models;
+using Octovisor.Server.Properties;
+using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
-using Octovisor.Models;
-using Octovisor.Server.Properties;
 
 namespace Octovisor.Server
 {
-    internal class OctovisorServer
+    internal class Server
     {
         private bool _ShouldRun;
         private TcpListener _Listener;
@@ -21,7 +20,7 @@ namespace Octovisor.Server
         private readonly Dictionary<string, EndPoint> _EndpointLookup;
         private readonly Logger _Logger;
 
-        internal OctovisorServer()
+        internal Server()
         {
             Console.Clear();
             Console.Title = Resources.Title;
