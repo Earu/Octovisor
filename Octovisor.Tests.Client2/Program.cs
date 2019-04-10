@@ -20,11 +20,11 @@ namespace Octovisor.Tests.Client2
                 ProcessName = "Meta2",
             };
 
-            OctovisorClient client = new OctovisorClient(config);
+            BaseClient client = new BaseClient(config);
             client.ExceptionThrown += e => Console.WriteLine(e);
             client.Log += log => Console.WriteLine(log);
 
-            await client.Connect();
+            await client.ConnectAsync();
             await Task.Delay(-1);
         }
     }

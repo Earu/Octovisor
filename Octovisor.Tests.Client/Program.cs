@@ -20,22 +20,12 @@ namespace Octovisor.Tests.Client
                 ProcessName = "TestProcess",
             };
 
-            OctovisorClient client = new OctovisorClient(config);
+            BaseClient client = new OctoClient(config);
             client.ExceptionThrown += e => Console.WriteLine(e);
             client.Log += log => Console.WriteLine(log);
 
-            await client.Connect();
-
-            // Test spam to test server
-            for(int i = 0; i < 10; i++)
-                await client.Send(new Message
-                {
-                    Identifier = "meme",
-                    Data = "LOL",
-                    OriginName = config.ProcessName,
-                    TargetName = "Meta2",
-                    Status = MessageStatus.DataRequest,
-                });
+            await client.ConnectAsync();
+            client.
 
             await Task.Delay(-1);
         }
