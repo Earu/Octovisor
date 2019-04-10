@@ -1,5 +1,5 @@
 ﻿using Octovisor.Client;
-using Octovisor.Models;
+using Octovisor.Messages;
 using System;
 using System.Threading.Tasks;
 

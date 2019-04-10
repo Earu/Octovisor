@@ -7,13 +7,13 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Octovisor.Server", "Octovis
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Octovisor.Client", "Octovisor.Client\Octovisor.Client.csproj", "{1B6F2BDA-033B-49EE-8CDC-63B613D09D51}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Octovisor.Models", "Octovisor.Models\Octovisor.Models.csproj", "{465E4A56-039F-4539-B320-68AD4F3ECE1F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Octovisor.Messages", "Octovisor.Models\Octovisor.Messages.csproj", "{465E4A56-039F-4539-B320-68AD4F3ECE1F}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Octovisor.Tests.Client", "Octovisor.Tests.Client\Octovisor.Tests.Client.csproj", "{77570E73-C2BA-40CE-AA58-05815FB63C9E}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Octovisor.Tests", "Octovisor.Tests", "{FD0C5B9B-F0ED-4492-985C-C79796B10A32}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Octovisor.Tests.Client2", "Octovisor.Tests.Client2\Octovisor.Tests.Client2.csproj", "{9E375B8F-6BEB-43D4-B647-9CD2948EC674}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Octovisor.Tests.Client2", "Octovisor.Tests.Client2\Octovisor.Tests.Client2.csproj", "{9E375B8F-6BEB-43D4-B647-9CD2948EC674}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

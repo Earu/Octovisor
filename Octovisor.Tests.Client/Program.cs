@@ -20,12 +20,14 @@ namespace Octovisor.Tests.Client
             };
 
             OctoClient client = new OctoClient(config);
+
             client.ExceptionThrown += e => Console.WriteLine(e);
             client.Log += log => Console.WriteLine(log);
 
             await client.ConnectAsync();
-            for (int i = 0; i < 10; i++)
-                await client.WriteValueAsync("meme", "Meta2", 1);
+            using (RemoteProcess proc = client.Use("Meta2"))
+                for (int i = 0; i < 10; i++)
+                    await proc.TransmitValueAsync("meme", 1);
 
             await Task.Delay(-1);
         }

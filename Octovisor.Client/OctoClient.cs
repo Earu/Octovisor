@@ -1,5 +1,5 @@
 ﻿using Newtonsoft.Json;
-using Octovisor.Models;
+using Octovisor.Messages;
 using System.Threading.Tasks;
 
 namespace Octovisor.Client
@@ -8,19 +8,34 @@ namespace Octovisor.Client
     {
         private readonly string _ProcessName;
 
+        /// <summary>
+        /// Instanciates a new OctoClient
+        /// </summary>
+        /// <param name="config">A configuration object</param>
         public OctoClient(Config config) : base(config)
         {
             this._ProcessName = config.ProcessName;
         }
 
-        public async Task WriteObjectAsync<T>(string identifier, string target, T obj) where T : class
+        /// <summary>
+        /// Gets an object representing a remote process
+        /// </summary>
+        /// <param name="processname">The name of the remote process</param>
+        /// <returns>The object representing the remote process</returns>
+        public RemoteProcess Use(string processname)
+        {
+            RemoteProcess process = new RemoteProcess(this, processname);
+            return process;
+        }
+
+        internal async Task TransmitObjectAsync<T>(string identifier, string target, T obj) where T : class
         {
             string payload = JsonConvert.SerializeObject(obj);
             Message msg = this.MessageFactory.CreateMessage(identifier, this._ProcessName, target, payload);
             await this.SendAsync(msg);
         }
 
-        public async Task WriteValueAsync<T>(string identifier, string target, T value) where T : struct
+        internal async Task TransmitValueAsync<T>(string identifier, string target, T value) where T : struct
         {
             string data = value.ToString();
             Message msg = this.MessageFactory.CreateMessage(identifier, this._ProcessName, target, data);
