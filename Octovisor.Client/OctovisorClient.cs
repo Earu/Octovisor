@@ -11,7 +11,7 @@ namespace Octovisor.Client
 {
     public class OctovisorClient
     {
-        private double _CurrentMessageID = 0;
+        private int _CurrentMessageID = 0;
 
         /// <summary>
         /// Fired whenever an exception is thrown
@@ -24,10 +24,10 @@ namespace Octovisor.Client
         public event Action<string> Log;
        
         private TcpClient _Client;
+        private byte[] _Buffer;
 
         private readonly Config _Config;
-        private readonly StringBuilder _Builder;
-        private readonly byte[] _Buffer;
+        private readonly MessageReader _Reader;
         private readonly MessageFactory _MessageFactory;
         private readonly Thread _ReceivingThread;
 
@@ -51,7 +51,7 @@ namespace Octovisor.Client
                 throw new Exception("Invalid Octovisor client configuration");
 
             this._Config = config;
-            this._Builder = new StringBuilder();
+            this._Reader = new MessageReader(config.MessageFinalizer);
             this._Buffer = new byte[config.BufferSize];
             this._MessageFactory = new MessageFactory();
             this._ReceivingThread = new Thread(async () => await this.Receive()); 
@@ -85,26 +85,10 @@ namespace Octovisor.Client
         }
 
         private List<Message> HandleReceivedData(string data)
-        {
-            List<string> msgdata = new List<string>();
-            foreach (char c in data)
-            {
-                this._Builder.Append(c);
+            => this._Reader.Read(data);
 
-                string current = this._Builder.ToString();
-                int endlen = this._Config.MessageFinalizer.Length;
-                if (current.Length >= endlen && current.Substring(current.Length - endlen, endlen).Equals(this._Config.MessageFinalizer))
-                {
-                    msgdata.Add(current.Substring(0, current.Length - endlen));
-                    this._Builder.Clear();
-                }
-            }
-
-            return msgdata
-                .Select(Message.Deserialize)
-                .Where(msg => msg != null)
-                .ToList();
-        }
+        private void ClearBuffer()
+            => Array.Clear(this._Buffer, 0, this._Buffer.Length);
 
         private async Task Receive()
         {
@@ -118,8 +102,12 @@ namespace Octovisor.Client
                 List<Message> messages = this.HandleReceivedData(data);
                 foreach(Message msg in messages)
                 {
-                    this.LogEvent($"{msg.ID} | {msg.Identifier} | {msg.Status}");     
-                }  
+                    this.LogEvent($"{msg.ID} | {msg.Identifier} | {msg.Status}");
+                    if (msg.Status == MessageStatus.MalformedMessageError)
+                        this.LogEvent(msg.Data);
+                }
+
+                this.ClearBuffer();
             }
         }
 
@@ -143,7 +131,8 @@ namespace Octovisor.Client
 
             try
             {
-                msg.ID = this._CurrentMessageID++;
+                msg.ID = this._CurrentMessageID;
+                Interlocked.Increment(ref this._CurrentMessageID);
                 string data = $"{msg.Serialize()}{this._Config.MessageFinalizer}";
                 byte[] bytedata = Encoding.UTF8.GetBytes(data);
 
@@ -152,7 +141,6 @@ namespace Octovisor.Client
 
                 NetworkStream stream = this._Client.GetStream();
                 await stream.WriteAsync(bytedata, 0, bytedata.Length);
-                await stream.FlushAsync();
             }
             catch(Exception e)
             {
