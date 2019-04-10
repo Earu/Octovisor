@@ -117,7 +117,7 @@ namespace Octovisor.Server
             }
 
             if (client == null) return;
-            ClientState state = new ClientState(client);
+            ClientState state = new ClientState(client, this._MessageFinalizer);
 
             #pragma warning disable CS4014
             this.ListenRemoteProcess(state);
@@ -161,23 +161,10 @@ namespace Octovisor.Server
         private List<Message> HandleReceivedData(ClientState state, int bytesread)
         {
             string content = Encoding.UTF8.GetString(state.Buffer, 0, bytesread);
-            List<string> msgdata = new List<string>();
-            foreach (char c in content)
-            {
-                state.Builder.Append(c);
+            List<Message> msgs = state.Reader.Read(content);
+            state.ClearBuffer();
 
-                string current = state.Builder.ToString();
-                int endlen = this._MessageFinalizer.Length;
-                if (current.Length >= endlen && current.Substring(current.Length - endlen, endlen).Equals(this._MessageFinalizer))
-                {
-                    msgdata.Add(current.Substring(0, current.Length - endlen));
-                    state.Builder.Clear();
-                }
-            }
-
-            return msgdata
-                .Select(Message.Deserialize)
-                .ToList();
+            return msgs;
         }
 
         private async Task ListenRemoteProcess(ClientState state)
@@ -227,7 +214,6 @@ namespace Octovisor.Server
                 NetworkStream stream = state.Client.GetStream();
                 byte[] bytedata = Encoding.UTF8.GetBytes($"{msg.Serialize()}{this._MessageFinalizer}");
                 await stream.WriteAsync(bytedata);
-                await stream.FlushAsync();
             }
             catch (Exception e)
             {
