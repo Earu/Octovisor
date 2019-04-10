@@ -157,15 +157,6 @@ namespace Octovisor.Server
             });
         }
 
-        private List<Message> HandleReceivedData(ClientState state, int bytesread)
-        {
-            string content = Encoding.UTF8.GetString(state.Buffer, 0, bytesread);
-            List<Message> msgs = state.Reader.Read(content);
-            state.ClearBuffer();
-
-            return msgs;
-        }
-
         private async Task ListenRemoteProcess(ClientState state)
         {
             try
@@ -174,9 +165,12 @@ namespace Octovisor.Server
                 NetworkStream stream = client.GetStream();
                 int bytesread = await stream.ReadAsync(state.Buffer);
                 if (bytesread <= 0) return;
-  
-                List<Message> msgs = this.HandleReceivedData(state, bytesread);
+
+                string data = Encoding.UTF8.GetString(state.Buffer, 0, bytesread);
+                List<Message> msgs = state.Reader.Read(data);
+                state.ClearBuffer();
                 bool receivemore = false;
+
                 foreach(Message msg in msgs)
                 {
                     switch (msg.Identifier)

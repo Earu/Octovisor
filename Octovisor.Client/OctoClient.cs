@@ -1,5 +1,5 @@
 ﻿using Newtonsoft.Json;
-using System;
+using Octovisor.Models;
 using System.Threading.Tasks;
 
 namespace Octovisor.Client
@@ -13,24 +13,18 @@ namespace Octovisor.Client
             this._ProcessName = config.ProcessName;
         }
 
-        public async Task TestPayload<T>(string identifier, string target, T value)
-        {
-            if (value is object obj)
-                await this.WriteObjectAsync(identifier, target, obj);
-            else if(typeof(T).IsValueType)
-                await this.WriteValueAsync(identifier, target, (ValueType)value);
-        }
-
-        internal async Task WriteObjectAsync<T>(string identifier, string target, T obj) where T : class
+        public async Task WriteObjectAsync<T>(string identifier, string target, T obj) where T : class
         {
             string payload = JsonConvert.SerializeObject(obj);
-            await this.SendAsync(this.MessageFactory.CreateMessage(identifier, this._ProcessName, target, payload));
+            Message msg = this.MessageFactory.CreateMessage(identifier, this._ProcessName, target, payload);
+            await this.SendAsync(msg);
         }
 
-        internal async Task WriteValueAsync<T>(string identifier, string target, T value) where T : struct
+        public async Task WriteValueAsync<T>(string identifier, string target, T value) where T : struct
         {
             string data = value.ToString();
-            await this.SendAsync(this.MessageFactory.CreateMessage(identifier, this._ProcessName, target, data));
+            Message msg = this.MessageFactory.CreateMessage(identifier, this._ProcessName, target, data);
+            await this.SendAsync(msg);
         }
     }
 }
