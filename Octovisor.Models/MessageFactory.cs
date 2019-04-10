@@ -33,5 +33,19 @@ namespace Octovisor.Models
 
             return msg;
         }
+
+        public Message CreateMessage(string identifier, string originame, string targetname, string payload)
+        {
+            Message msg = new Message
+            {
+                Data = payload,
+                Status = MessageStatus.DataRequest,
+                OriginName = originame,
+                TargetName = targetname,
+                Identifier = identifier,
+            };
+
+            return msg;
+        }
     }
 }

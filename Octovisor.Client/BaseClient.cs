@@ -1,15 +1,14 @@
-﻿using System;
+﻿using Octovisor.Models;
+using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Octovisor.Models;
 
 namespace Octovisor.Client
 {
-    public class OctovisorClient
+    public abstract class BaseClient
     {
         private int _CurrentMessageID = 0;
 
@@ -22,10 +21,20 @@ namespace Octovisor.Client
         /// Fired when something is logged
         /// </summary>
         public event Action<string> Log;
+
+        /// <summary>
+        /// Fired when the client is connected to the remote server
+        /// </summary>
+        public event Action Connected;
+
+        /// <summary>
+        /// Fired when the client is registered on the remote server
+        /// </summary>
+        public event Action Registered;
        
         private TcpClient _Client;
-        private byte[] _Buffer;
 
+        private readonly byte[] _Buffer;
         private readonly Config _Config;
         private readonly MessageReader _Reader;
         private readonly MessageFactory _MessageFactory;
@@ -41,11 +50,13 @@ namespace Octovisor.Client
         /// </summary>
         public bool IsRegistered { get; private set; }
 
+        internal MessageFactory MessageFactory { get; private set; }
+
         /// <summary>
         /// Creates a new instance of OctovisorClient
         /// </summary>
         /// <param name="config">A config object containing your token and other settings</param>
-        public OctovisorClient(Config config)
+        public BaseClient(Config config)
         {
             if (!config.IsValid())
                 throw new Exception("Invalid Octovisor client configuration");
@@ -63,7 +74,7 @@ namespace Octovisor.Client
         /// <summary>
         /// Connects to the remote octovisor server
         /// </summary>
-        public async Task Connect()
+        public async Task ConnectAsync()
             => await this.InternalConnect().ConfigureAwait(false);
 
         private async Task InternalConnect()
@@ -73,8 +84,10 @@ namespace Octovisor.Client
                 this._Client = new TcpClient();
                 await this._Client.ConnectAsync(this._Config.Address, this._Config.Port);
                 this.IsConnected = true;
+                this.Connected?.Invoke();
 
                 await this.Register();
+                this.Registered?.Invoke();
                 this._ReceivingThread.Start();
             }
             catch(Exception e)
@@ -113,21 +126,19 @@ namespace Octovisor.Client
 
         private async Task Register()
         {
-            await this.Send(this._MessageFactory.CreateRegisterMessage(this._Config.ProcessName, this._Config.Token));
+            await this.SendAsync(this._MessageFactory.CreateRegisterMessage(this._Config.ProcessName, this._Config.Token));
             this.LogEvent("Registering on server");
         }
 
         private async Task Unregister()
         {
-            await this.Send(this._MessageFactory.CreateUnregisterMessage(this._Config.ProcessName, this._Config.Token));
+            await this.SendAsync(this._MessageFactory.CreateUnregisterMessage(this._Config.ProcessName, this._Config.Token));
             this.LogEvent("Ending on server");
         }
 
-        //to switch to private / internal
-        public async Task Send(Message msg)
+        internal async Task SendAsync(Message msg)
         {
             if (!this.IsConnected) return;
-            //TaskCompletionSource<bool> tcs = new TaskCompletionSource<bool>();
 
             try
             {
@@ -137,18 +148,14 @@ namespace Octovisor.Client
                 byte[] bytedata = Encoding.UTF8.GetBytes(data);
 
                 this.LogEvent($"Sending {data.Length} bytes\n{data}");
-                //this.MessageCallbacks[msg.ID] = new MessageHandle(typeof(T),tcs);
 
                 NetworkStream stream = this._Client.GetStream();
                 await stream.WriteAsync(bytedata, 0, bytedata.Length);
             }
             catch(Exception e)
             {
-                //tcs.SetException(e);
                 this.ExceptionEvent(e);
             }
-
-            //await tcs.Task;
         }
     }
 }
