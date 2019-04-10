@@ -18,7 +18,7 @@ namespace Octovisor.Models
     public class Message
     {
         [JsonProperty(PropertyName = "id")]
-        public double ID { get; set; }
+        public int ID { get; set; }
 
         [JsonProperty(PropertyName = "origin")]
         public string OriginName { get; set; }

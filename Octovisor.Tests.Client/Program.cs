@@ -14,9 +14,9 @@ namespace Octovisor.Tests.Client
 
             Config config = new Config
             {
-                Token = "cool",
+                Token = "you're cool",
                 Address = "127.0.0.1",
-                Port = 4559,
+                Port = 6558,
                 ProcessName = "TestProcess",
             };
 
