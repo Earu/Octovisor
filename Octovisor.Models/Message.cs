@@ -3,15 +3,22 @@ using System;
 
 namespace Octovisor.Messages
 {
+    public enum MessageType
+    {
+        Unknown = 0,
+        Request = 1,
+        Response = 2,
+    }
+
     public enum MessageStatus
     {
-        DataRequest              = 0,
-        DataResponse             = 1,
-        ServerError              = 2,
-        TargetError              = 3,
-        NetworkError             = 4,
-        MalformedMessageError    = 5,
-        ProcessNotFound          = 6,
+        Unknown = 0,
+        Success = 1,
+        ServerError = 2,
+        TargetError = 3,
+        NetworkError = 4,
+        MalformedMessageError = 5,
+        ProcessNotFound = 6,
         UnknownMessageIdentifier = 7,
     }
 
@@ -32,14 +39,29 @@ namespace Octovisor.Messages
         [JsonProperty(PropertyName = "data")]
         public string Data { get; set; }
 
+        [JsonProperty(PropertyName = "error")]
+        public string Error { get; set; }
+
+        [JsonProperty(PropertyName = "type")]
+        public MessageType Type { get; set; }
+
         [JsonProperty(PropertyName = "status")]
         public MessageStatus Status { get; set; }
 
         [JsonIgnore]
         public int Length { get => this.Data != null ? this.Data.Length : 0; }
 
+        [JsonIgnore]
+        public bool IsMalformed { get => this.Status == MessageStatus.MalformedMessageError; }
+
+        [JsonIgnore]
+        public bool HasException { get => this.Status != MessageStatus.Success && this.Status != MessageStatus.Unknown; }
+
         public T GetData<T>()
         {
+            if (this.HasException)
+                throw new Exception(this.Error);
+
             try
             {
                 return JsonConvert.DeserializeObject<T>(this.Data);
@@ -60,11 +82,13 @@ namespace Octovisor.Messages
             {
                 return new Message
                 {
-                    ID = 0,
+                    ID = -1,
                     OriginName = "UNKNOWN_ORIGIN",
                     TargetName = "UNKNOWN_TARGET",
                     Identifier = "UNKNOWN",
-                    Data = $"EXCEPTION: {ex.Message}\nDATA: {json}",
+                    Data = null,
+                    Error = ex.Message,
+                    Type = MessageType.Unknown,
                     Status = MessageStatus.MalformedMessageError,
                 };
             }

@@ -5,14 +5,19 @@ namespace Octovisor.Messages
 {
     public class MessageReader
     {
+        // Number of bytes possible before clearing up data (1GB)
+        private const int _Threshold = 1000000000; 
+
         private readonly string _MessageFinalizer;
         private readonly StringBuilder _Builder;
 
         public MessageReader(string messagefinalizer)
         {
             this._MessageFinalizer = messagefinalizer;
-            this._Builder = new StringBuilder();
+            this._Builder = new StringBuilder(_Threshold);
         }
+
+        public int Size { get => this._Builder.Length; }
 
         private List<Message> JsonToMessageList(List<string> jmsgs)
         {
@@ -42,7 +47,13 @@ namespace Octovisor.Messages
                 }
             }
 
+            if (this._Builder.Length >= _Threshold)
+                this._Builder.Clear();
+
             return this.JsonToMessageList(msgdata);
         }
+
+        public void Clear()
+            => this._Builder.Clear();
     }
 }

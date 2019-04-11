@@ -10,7 +10,8 @@
                 TargetName = "SERVER",
                 Identifier = "INTERNAL_OCTOVISOR_PROCESS_INIT",
                 Data = token,
-                Status = MessageStatus.DataRequest,
+                Type = MessageType.Request,
+                Status = MessageStatus.Unknown,
             };
 
             return msg;
@@ -24,7 +25,8 @@
                 TargetName = "SERVER",
                 Identifier = "INTERNAL_OCTOVISOR_PROCESS_END",
                 Data = token,
-                Status = MessageStatus.DataRequest,
+                Type = MessageType.Request,
+                Status = MessageStatus.Unknown,
             };
 
             return msg;
@@ -34,14 +36,30 @@
         {
             Message msg = new Message
             {
-                Data = payload,
-                Status = MessageStatus.DataRequest,
                 OriginName = originame,
                 TargetName = targetname,
                 Identifier = identifier,
+                Data = payload,
+                Type = MessageType.Request,
+                Status = MessageStatus.Unknown,
             };
 
             return msg;
+        }
+
+        public Message CreateMessageResponse(Message msg, string payload, MessageStatus status)
+        {
+            Message newmsg = new Message
+            {
+                OriginName = msg.TargetName,
+                TargetName = msg.OriginName,
+                Identifier = msg.Identifier,
+                Data = payload,
+                Type = MessageType.Response,
+                Status = status,
+            };
+
+            return newmsg;
         }
     }
 }
