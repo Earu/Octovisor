@@ -9,8 +9,8 @@ namespace Octovisor.Client
 {
     public class OctoClient : BaseClient
     {
-        private readonly string _ProcessName;
-        private readonly Dictionary<string, RemoteProcess> _RemoteProcesses;
+        private readonly string ProcessName;
+        private readonly Dictionary<string, RemoteProcess> RemoteProcess;
 
         /// <summary>
         /// Instanciates a new OctoClient
@@ -18,40 +18,40 @@ namespace Octovisor.Client
         /// <param name="config">A configuration object</param>
         public OctoClient(Config config) : base(config)
         {
-            this._ProcessName = config.ProcessName;
-            this._RemoteProcesses = new Dictionary<string, RemoteProcess>();
+            this.ProcessName = config.ProcessName;
+            this.RemoteProcess = new Dictionary<string, RemoteProcess>();
         }
 
         /// <summary>
         /// Gets the list of all currently available processes
         /// </summary>
-        public List<RemoteProcess> AvailableProcesses { get => this._RemoteProcesses.Select(x => x.Value).ToList(); }
+        public List<RemoteProcess> AvailableProcesses { get => this.RemoteProcess.Select(x => x.Value).ToList(); }
 
         /// <summary>
         /// Gets an object representing a remote process
         /// </summary>
-        /// <param name="processname">The name of the remote process</param>
+        /// <param name="processName">The name of the remote process</param>
         /// <returns>The object representing the remote process</returns>
-        public RemoteProcess UseProcess(string processname)
+        public RemoteProcess GetProcess(string processName)
         {
             RemoteProcess process = null;
-            if (!this._RemoteProcesses.ContainsKey(processname))
+            if (!this.RemoteProcess.ContainsKey(processName))
             {
-                process = new RemoteProcess(this, processname);
-                this._RemoteProcesses.Add(processname, process);
+                process = new RemoteProcess(this, processName);
+                this.RemoteProcess.Add(processName, process);
             }
             else
             {
-                process = this._RemoteProcesses[processname];
+                process = this.RemoteProcess[processName];
             }
 
             return process;
         }
 
-        internal void DisposeOf(string processname)
+        internal void DisposeOf(string processName)
         {
-            if (this._RemoteProcesses.ContainsKey(processname))
-                this._RemoteProcesses.Remove(processname);
+            if (this.RemoteProcess.ContainsKey(processName))
+                this.RemoteProcess.Remove(processName);
             else
                 throw new UnknownRemoteProcessException();
         }
@@ -59,14 +59,14 @@ namespace Octovisor.Client
         internal async Task TransmitObjectAsync<T>(string identifier, string target, T obj) where T : class
         {
             string payload = JsonConvert.SerializeObject(obj);
-            Message msg = this.MessageFactory.CreateMessage(identifier, this._ProcessName, target, payload);
+            Message msg = this.MessageFactory.CreateMessage(identifier, this.ProcessName, target, payload);
             await this.SendAsync(msg);
         }
 
         internal async Task TransmitValueAsync<T>(string identifier, string target, T value) where T : struct
         {
             string data = value.ToString();
-            Message msg = this.MessageFactory.CreateMessage(identifier, this._ProcessName, target, data);
+            Message msg = this.MessageFactory.CreateMessage(identifier, this.ProcessName, target, data);
             await this.SendAsync(msg);
         }
     }

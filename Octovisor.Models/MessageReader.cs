@@ -6,54 +6,45 @@ namespace Octovisor.Messages
     public class MessageReader
     {
         // Number of bytes possible before clearing up data (1GB)
-        private const int _Threshold = 1000000000; 
+        private const int Treshold = 1000000000; 
 
-        private readonly string _MessageFinalizer;
-        private readonly StringBuilder _Builder;
+        private readonly string MessageFinalizer;
+        private readonly StringBuilder Builder;
 
-        public MessageReader(string messagefinalizer)
+        public MessageReader(string messageFinalizer)
         {
-            this._MessageFinalizer = messagefinalizer;
-            this._Builder = new StringBuilder(_Threshold);
+            this.MessageFinalizer = messageFinalizer;
+            this.Builder = new StringBuilder(Treshold);
         }
 
-        public int Size { get => this._Builder.Length; }
+        public int Size { get => this.Builder.Length; }
 
-        private List<Message> JsonToMessageList(List<string> jmsgs)
+        public List<Message> Read(string content)
         {
             List<Message> msgs = new List<Message>();
-            foreach (string jmsg in jmsgs)
-                msgs.Add(Message.Deserialize(jmsg));
+            foreach (char c in content)
+            {
+                this.Builder.Append(c);
+
+                string current = this.Builder.ToString();
+                int finalizerLen = this.MessageFinalizer.Length;
+                if (current.Length >= finalizerLen && current.EndsWith(this.MessageFinalizer))
+                {
+                    string smsg = current.Substring(0, current.Length - finalizerLen);
+                    if (!string.IsNullOrWhiteSpace(smsg))
+                        msgs.Add(Message.Deserialize(smsg));
+
+                    this.Builder.Clear();
+                }
+            }
+
+            if (this.Builder.Length >= Treshold)
+                this.Builder.Clear();
 
             return msgs;
         }
 
-        public List<Message> Read(string content)
-        {
-            List<string> msgdata = new List<string>();
-            foreach (char c in content)
-            {
-                this._Builder.Append(c);
-
-                string current = this._Builder.ToString();
-                int endlen = this._MessageFinalizer.Length;
-                if (current.Length >= endlen && current.Substring(current.Length - endlen, endlen).Equals(this._MessageFinalizer))
-                {
-                    string smsg = current.Substring(0, current.Length - endlen);
-                    if (!string.IsNullOrWhiteSpace(smsg))
-                        msgdata.Add(smsg);
-
-                    this._Builder.Clear();
-                }
-            }
-
-            if (this._Builder.Length >= _Threshold)
-                this._Builder.Clear();
-
-            return this.JsonToMessageList(msgdata);
-        }
-
         public void Clear()
-            => this._Builder.Clear();
+            => this.Builder.Clear();
     }
 }

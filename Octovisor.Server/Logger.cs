@@ -6,15 +6,15 @@ namespace Octovisor.Server
 {
     internal class Logger
     {
-        private static readonly string _Prefix = "> ";
-        private static readonly string _Path = "logs";
+        private static readonly string Prefix = "> ";
+        private static readonly string Path = "logs";
 
         private readonly string _MainLogFile;
 
         internal Logger()
         {
-            if (!Directory.Exists(_Path))
-                Directory.CreateDirectory(_Path);
+            if (!Directory.Exists(Path))
+                Directory.CreateDirectory(Path);
             this._MainLogFile = "octovisor.log";
         }
 
@@ -22,25 +22,25 @@ namespace Octovisor.Server
         {
             int hour = DateTime.Now.TimeOfDay.Hours;
             int minute = DateTime.Now.TimeOfDay.Minutes;
-            string nicehour = hour < 10 ? "0" + hour : hour.ToString();
-            string nicemin = minute < 10 ? "0" + minute : minute.ToString();
-            return $"{nicehour}:{nicemin} - ";
+            string niceHour = hour < 10 ? "0" + hour : hour.ToString();
+            string niceMin = minute < 10 ? "0" + minute : minute.ToString();
+            return $"{niceHour}:{niceMin} - ";
         }
 
-        private void Prefix()
+        private void Head()
         {
             Console.ForegroundColor = ConsoleColor.DarkYellow;
-            Console.Write(_Prefix);
+            Console.Write(Prefix);
             Console.ForegroundColor = ConsoleColor.Gray;
             Console.Write(this.FormattedTime());
         }
 
-        internal void LogTo(string filename, string msg)
-            => File.AppendAllText($"{_Path}/{filename}", $"{DateTime.Now} - {msg}\n");
+        internal void LogTo(string fileName, string msg)
+            => File.AppendAllText($"{Path}/{fileName}", $"{DateTime.Now} - {msg}\n");
 
         public void Normal(string msg)
         {
-            this.Prefix();
+            this.Head();
             Console.ForegroundColor = ConsoleColor.White;
             Console.WriteLine(msg);
             this.LogTo(this._MainLogFile, msg);
@@ -48,7 +48,7 @@ namespace Octovisor.Server
 
         public void Nice(string head, ConsoleColor col, string content)
         {
-            this.Prefix();
+            this.Head();
             Console.ForegroundColor = ConsoleColor.White;
             Console.Write("[");
             Console.ForegroundColor = col;
@@ -61,7 +61,7 @@ namespace Octovisor.Server
 
         public void Warning(string msg)
         {
-            this.Prefix();
+            this.Head();
             Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine(msg);
             this.LogTo(this._MainLogFile, $"[WARN] >> {msg}");
@@ -69,7 +69,7 @@ namespace Octovisor.Server
 
         public void Danger(string msg)
         {
-            this.Prefix();
+            this.Head();
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine(msg);
             this.LogTo(this._MainLogFile, $"[DANGER] >> {msg}");
@@ -77,7 +77,7 @@ namespace Octovisor.Server
 
         public void Danger(Exception ex)
         {
-            this.Prefix();
+            this.Head();
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine(ex);
             this.LogTo(this._MainLogFile, $"[DANGER] >> {ex}");
@@ -85,7 +85,7 @@ namespace Octovisor.Server
 
         public void Error(string msg)
         {
-            this.Prefix();
+            this.Head();
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine("/!\\ ERROR /!\\");
             Console.WriteLine(msg);
@@ -95,7 +95,7 @@ namespace Octovisor.Server
 
         public void Good(string msg)
         {
-            this.Prefix();
+            this.Head();
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine(msg);
             this.LogTo(this._MainLogFile, $"[GOOD] >> {msg}");
