@@ -10,7 +10,7 @@ namespace Octovisor.Client
 {
     public abstract class BaseClient
     {
-        private int _CurrentMessageID = 0;
+        private int CurrentMessageID = 0;
 
         /// <summary>
         /// Fired whenever an exception is thrown
@@ -34,10 +34,10 @@ namespace Octovisor.Client
        
         private TcpClient _Client;
 
-        private readonly byte[] _Buffer;
-        private readonly Config _Config;
-        private readonly MessageReader _Reader;
-        private readonly Thread _ReceivingThread;
+        private readonly byte[] Buffer;
+        private readonly Config Config;
+        private readonly MessageReader Reader;
+        private readonly Thread ReceivingThread;
 
         /// <summary>
         /// Gets whether or not this instance is connected 
@@ -60,10 +60,10 @@ namespace Octovisor.Client
             if (!config.IsValid())
                 throw new Exception("Invalid Octovisor client configuration");
 
-            this._Config = config;
-            this._Reader = new MessageReader(config.MessageFinalizer);
-            this._Buffer = new byte[config.BufferSize];
-            this._ReceivingThread = new Thread(async () => await this.ListenAsync());
+            this.Config = config;
+            this.Reader = new MessageReader(config.MessageFinalizer);
+            this.Buffer = new byte[config.BufferSize];
+            this.ReceivingThread = new Thread(async () => await this.ListenAsync());
 
             this.MessageFactory = new MessageFactory();
         }
@@ -82,13 +82,13 @@ namespace Octovisor.Client
             try
             {
                 this._Client = new TcpClient();
-                await this._Client.ConnectAsync(this._Config.Address, this._Config.Port);
+                await this._Client.ConnectAsync(this.Config.Address, this.Config.Port);
                 this.IsConnected = true;
                 this.Connected?.Invoke();
 
                 await this.RegisterAsync();
                 this.Registered?.Invoke();
-                this._ReceivingThread.Start();
+                this.ReceivingThread.Start();
             }
             catch(Exception e)
             {
@@ -98,18 +98,18 @@ namespace Octovisor.Client
         }
 
         private void ClearBuffer()
-            => Array.Clear(this._Buffer, 0, this._Buffer.Length);
+            => Array.Clear(this.Buffer, 0, this.Buffer.Length);
 
         private async Task ListenAsync()
         {
             NetworkStream stream = this._Client.GetStream();
             while(this.IsConnected)
             {
-                int bytesread = await stream.ReadAsync(this._Buffer, 0, this._Config.BufferSize);
+                int bytesread = await stream.ReadAsync(this.Buffer, 0, this.Config.BufferSize);
                 if (bytesread <= 0) continue;
                 
-                string data = Encoding.UTF8.GetString(this._Buffer);
-                List<Message> messages = this._Reader.Read(data);
+                string data = Encoding.UTF8.GetString(this.Buffer);
+                List<Message> messages = this.Reader.Read(data);
                 this.ClearBuffer();
 
                 foreach (Message msg in messages)
@@ -123,13 +123,13 @@ namespace Octovisor.Client
 
         private async Task RegisterAsync()
         {
-            await this.SendAsync(this.MessageFactory.CreateRegisterMessage(this._Config.ProcessName, this._Config.Token));
+            await this.SendAsync(this.MessageFactory.CreateRegisterMessage(this.Config.ProcessName, this.Config.Token));
             this.LogEvent("Registering on server");
         }
 
         private async Task UnregisterAsync()
         {
-            await this.SendAsync(this.MessageFactory.CreateUnregisterMessage(this._Config.ProcessName, this._Config.Token));
+            await this.SendAsync(this.MessageFactory.CreateUnregisterMessage(this.Config.ProcessName, this.Config.Token));
             this.LogEvent("Ending on server");
         }
 
@@ -139,9 +139,9 @@ namespace Octovisor.Client
 
             try
             {
-                msg.ID = this._CurrentMessageID;
-                Interlocked.Increment(ref this._CurrentMessageID);
-                string data = $"{msg.Serialize()}{this._Config.MessageFinalizer}";
+                msg.ID = this.CurrentMessageID;
+                Interlocked.Increment(ref this.CurrentMessageID);
+                string data = $"{msg.Serialize()}{this.Config.MessageFinalizer}";
                 byte[] bytedata = Encoding.UTF8.GetBytes(data);
 
                 this.LogEvent($"Sending {data.Length} bytes\n{data}");

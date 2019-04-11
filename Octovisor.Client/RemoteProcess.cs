@@ -1,16 +1,15 @@
-﻿using Octovisor.Client.Exceptions;
-using System;
+﻿using System;
 using System.Threading.Tasks;
 
 namespace Octovisor.Client
 {
-    public class RemoteProcess : IDisposable
+    public class RemoteProcess
     {
-        private readonly OctoClient _Client;
+        private readonly OctoClient Client;
 
         internal RemoteProcess(OctoClient client, string name)
         {
-            this._Client = client;
+            this.Client = client;
             this.Name = name;
         }
 
@@ -37,7 +36,7 @@ namespace Octovisor.Client
         {
             this.VerifyClientState();
 
-            await this._Client.TransmitObjectAsync(identifier, this.Name, obj);
+            await this.Client.TransmitObjectAsync(identifier, this.Name, obj);
         }
 
         /// <summary>
@@ -49,7 +48,7 @@ namespace Octovisor.Client
         {
             this.VerifyClientState();
 
-            await this._Client.TransmitValueAsync(identifier, this.Name, value);
+            await this.Client.TransmitValueAsync(identifier, this.Name, value);
         }
 
         /// <summary>
@@ -75,11 +74,5 @@ namespace Octovisor.Client
 
             throw new NotImplementedException();
         }
-
-        /// <summary>
-        /// Frees all the resources used by this instance
-        /// </summary>
-        public void Dispose()
-            => this._Client.DisposeOf(this.Name);
     }
 }

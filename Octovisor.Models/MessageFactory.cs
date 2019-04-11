@@ -2,13 +2,13 @@
 {
     public class MessageFactory
     {
-        public Message CreateRegisterMessage(string procname, string token)
+        public Message CreateRegisterMessage(string processName, string token)
         {
             Message msg = new Message
             {
-                OriginName = procname,
-                TargetName = "SERVER",
-                Identifier = "INTERNAL_OCTOVISOR_PROCESS_INIT",
+                OriginName = processName,
+                TargetName = MessageConstants.SERVER_PROCESS_NAME,
+                Identifier = MessageConstants.REGISTER_IDENTIFIER,
                 Data = token,
                 Type = MessageType.Request,
                 Status = MessageStatus.Unknown,
@@ -17,13 +17,13 @@
             return msg;
         }
 
-        public Message CreateUnregisterMessage(string procname, string token)
+        public Message CreateUnregisterMessage(string processName, string token)
         {
             Message msg = new Message
             {
-                OriginName = procname,
-                TargetName = "SERVER",
-                Identifier = "INTERNAL_OCTOVISOR_PROCESS_END",
+                OriginName = processName,
+                TargetName = MessageConstants.SERVER_PROCESS_NAME,
+                Identifier = MessageConstants.END_IDENTIFIER,
                 Data = token,
                 Type = MessageType.Request,
                 Status = MessageStatus.Unknown,
@@ -32,12 +32,12 @@
             return msg;
         }
 
-        public Message CreateMessage(string identifier, string originame, string targetname, string payload)
+        public Message CreateMessage(string identifier, string originName, string targetName, string payload)
         {
             Message msg = new Message
             {
-                OriginName = originame,
-                TargetName = targetname,
+                OriginName = originName,
+                TargetName = targetName,
                 Identifier = identifier,
                 Data = payload,
                 Type = MessageType.Request,
@@ -47,9 +47,24 @@
             return msg;
         }
 
+        public Message CreateMessage(string identifier, string originName, string targetName, string payload, MessageType type, MessageStatus status)
+        {
+            Message msg = new Message
+            {
+                OriginName = originName,
+                TargetName = targetName,
+                Identifier = identifier,
+                Data = payload,
+                Type = type,
+                Status = status,
+            };
+
+            return msg;
+        }
+
         public Message CreateMessageResponse(Message msg, string payload, MessageStatus status)
         {
-            Message newmsg = new Message
+            Message newMsg = new Message
             {
                 OriginName = msg.TargetName,
                 TargetName = msg.OriginName,
@@ -59,7 +74,7 @@
                 Status = status,
             };
 
-            return newmsg;
+            return newMsg;
         }
     }
 }
