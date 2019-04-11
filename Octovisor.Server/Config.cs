@@ -35,7 +35,7 @@ namespace Octovisor.Server
         {
             string yaml = File.ReadAllText(path);
             Deserializer deserializer = new Deserializer();
-            Config config = null;
+            Config config;
             try
             {
                 config = deserializer.Deserialize<Config>(yaml);

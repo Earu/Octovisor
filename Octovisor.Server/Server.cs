@@ -44,7 +44,6 @@ namespace Octovisor.Server
             };
             string ascii = Resources.Ascii;
             string[] lines = ascii.Split('\n');
-            Random rand = new Random();
             for (int i = 0; i < lines.Length; i++)
             {
                 string line = lines[i];
@@ -145,10 +144,13 @@ namespace Octovisor.Server
 
         private void OnClientStateException(ClientState state, Exception e)
         {
-            this.HandleException(e, () =>
+            this.HandleException(e, async () =>
             {
                 this.Logger.Nice("Process", ConsoleColor.Red, $"{state.Name} was forcibly closed");
                 this.EndProcess(state.RemoteEndPoint);
+
+                ProcessUpdateData enddata = new ProcessUpdateData(true, state.Name);
+                await this.BroadcastMessageAsync(MessageConstants.END_IDENTIFIER, enddata.Serialize());
             });
         }
 
@@ -178,15 +180,13 @@ namespace Octovisor.Server
                     {
                         case MessageConstants.REGISTER_IDENTIFIER:
                             this.RegisterProcess(state, msg.OriginName, msg.Data);
-                            ProcessUpdateData registerdata = new ProcessUpdateData(state.IsRegistered, msg.OriginName);
-                            msg.Data = registerdata.Serialize();
-                            await this.BroadcastMessageAsync(msg);
+                            ProcessUpdateData registerData = new ProcessUpdateData(state.IsRegistered, msg.OriginName);
+                            await this.BroadcastMessageAsync(msg.Identifier, registerData.Serialize());
                             break;
                         case MessageConstants.END_IDENTIFIER:
                             this.EndProcess(msg.OriginName, msg.Data);
-                            ProcessUpdateData enddata = new ProcessUpdateData(!state.IsRegistered, msg.OriginName);
-                            msg.Data = enddata.Serialize();
-                            await this.BroadcastMessageAsync(msg);
+                            ProcessUpdateData endData = new ProcessUpdateData(!state.IsRegistered, msg.OriginName);
+                            await this.BroadcastMessageAsync(msg.Identifier, endData.Serialize());
                             break;
                         default:
                             await this.DispatchMessageAsync(state, msg);
@@ -318,15 +318,15 @@ namespace Octovisor.Server
         private async Task AnswerMessageAsync(ClientState state, Message msg, string data = null, MessageStatus status = MessageStatus.Success) 
         {
             Message replyMsg = this.MessageFactory.CreateMessageResponse(msg, data, status);
-            await this.SendAsync(state, msg);
+            await this.SendAsync(state, replyMsg);
         }
 
-        private async Task BroadcastMessageAsync(Message msg)
+        private async Task BroadcastMessageAsync(string identifier, string data)
         {
             foreach(KeyValuePair<EndPoint,ClientState> state in this.States)
             {
-                Message broadcastMsg = this.MessageFactory.CreateMessage(msg.Identifier, MessageConstants.SERVER_PROCESS_NAME, state.Value.Name, 
-                    msg.Data, MessageType.Response, MessageStatus.Success);
+                Message broadcastMsg = this.MessageFactory.CreateMessage(identifier, MessageConstants.SERVER_PROCESS_NAME, state.Value.Name, 
+                    data, MessageType.Response, MessageStatus.Success);
                 await this.SendAsync(state.Value, broadcastMsg);
             }
         }
