@@ -56,13 +56,13 @@ namespace Octovisor.Server
             Console.WriteLine("\n" + new string('-', 70));
         }
 
-        internal Task Run()
+        internal Task RunAsync()
         {
             if(this._InternalTask != null)
                 this.Stop();
 
             this._ShouldRun = true;
-            this._InternalTask = this.InternalRun();
+            this._InternalTask = this.InternalRunAsync();
 
             return this._InternalTask;
         }
@@ -75,7 +75,7 @@ namespace Octovisor.Server
             this._InternalTask.Wait();
         }
 
-        private async Task InternalRun()
+        private async Task InternalRunAsync()
         {
             this.DisplayAsciiArt();
             try
@@ -91,10 +91,10 @@ namespace Octovisor.Server
                 this._Logger.Nice("Server", ConsoleColor.Magenta, $"Running on {endpoint}...");
 
                 while (this._ShouldRun)
-                    await this.ProcessConnection();
+                    await this.ListenConnectionAsync();
 
                 foreach (KeyValuePair<string, EndPoint> kv in this._EndpointLookup)
-                    this.EndRemoteProcess(kv.Key, Config.Instance.Token);
+                    this.EndProcess(kv.Key, Config.Instance.Token);
 
                 this._Listener.Stop();
             }
@@ -105,7 +105,7 @@ namespace Octovisor.Server
             }
         }
 
-        private async Task ProcessConnection()
+        private async Task ListenConnectionAsync()
         {
             TcpClient client = null;
             try
@@ -121,7 +121,7 @@ namespace Octovisor.Server
             ClientState state = new ClientState(client, this._MessageFinalizer);
 
             #pragma warning disable CS4014
-            this.ListenRemoteProcess(state);
+            this.ListenAsync(state);
             #pragma warning restore CS4014
         }
 
@@ -147,7 +147,7 @@ namespace Octovisor.Server
             this.HandleException(e, () =>
             {
                 this._Logger.Nice("Process", ConsoleColor.Red, $"{state.Identifier} was forcibly closed");
-                this.EndRemoteProcess(state.RemoteEndPoint);
+                this.EndProcess(state.RemoteEndPoint);
             });
         }
 
@@ -159,7 +159,7 @@ namespace Octovisor.Server
             });
         }
 
-        private async Task ListenRemoteProcess(ClientState state)
+        private async Task ListenAsync(ClientState state)
         {
             try
             {
@@ -176,14 +176,14 @@ namespace Octovisor.Server
                     switch (msg.Identifier)
                     {
                         case "INTERNAL_OCTOVISOR_PROCESS_INIT":
-                            this.RegisterRemoteProcess(state, msg.OriginName, msg.Data);
-                            await this.AnswerMessage(state, msg, state.IsRegistered ? "true" : "false", MessageStatus.Success);
+                            this.RegisterProcess(state, msg.OriginName, msg.Data);
+                            await this.AnswerMessageAsync(state, msg, state.IsRegistered ? "true" : "false", MessageStatus.Success);
                             break;
                         case "INTERNAL_OCTOVISOR_PROCESS_END":
-                            this.EndRemoteProcess(msg.OriginName, msg.Data);
+                            this.EndProcess(msg.OriginName, msg.Data);
                             break;
                         default:
-                            await this.DispatchMessage(state, msg);
+                            await this.DispatchMessageAsync(state, msg);
                             break;
                     }
                 }
@@ -195,7 +195,7 @@ namespace Octovisor.Server
                 // Wait again for incoming data
                 if (!state.IsDisposed && state.IsRegistered)
                     #pragma warning disable CS4014
-                    this.ListenRemoteProcess(state);
+                    this.ListenAsync(state);
                     #pragma warning restore CS4014
             }
             catch (Exception e)
@@ -204,7 +204,7 @@ namespace Octovisor.Server
             }
         }
 
-        private async Task Send(ClientState state, Message msg)
+        private async Task SendAsync(ClientState state, Message msg)
         {
             try
             {
@@ -218,7 +218,7 @@ namespace Octovisor.Server
             }
         }
 
-        private void RegisterRemoteProcess(ClientState state, string name, string token)
+        private void RegisterProcess(ClientState state, string name, string token)
         {
             if (token != Config.Instance.Token)
             {
@@ -236,7 +236,7 @@ namespace Octovisor.Server
                 {
                     this._Logger.Nice("Process", ConsoleColor.Yellow, $"Overriding a remote process ({name})");
                     endpoint = this._EndpointLookup[name];
-                    this.EndRemoteProcess(endpoint);
+                    this.EndProcess(endpoint);
                 }
 
                 endpoint = state.RemoteEndPoint;
@@ -248,7 +248,7 @@ namespace Octovisor.Server
             }
         }
 
-        private void EndRemoteProcess(string name, string token)
+        private void EndProcess(string name, string token)
         {
             if (token != Config.Instance.Token)
             {
@@ -271,7 +271,7 @@ namespace Octovisor.Server
         }
 
         // When client closes brutally
-        private void EndRemoteProcess(EndPoint endpoint)
+        private void EndProcess(EndPoint endpoint)
         {
             if(this._States.ContainsKey(endpoint))
             {
@@ -284,12 +284,12 @@ namespace Octovisor.Server
             }
         }
 
-        private async Task ForwardMessage(Message msg)
+        private async Task ForwardMessageAsync(Message msg)
         {
             EndPoint endpoint = this._EndpointLookup[msg.TargetName];
             ClientState state = this._States[endpoint];
             msg.Status = MessageStatus.Success;
-            await this.Send(state, msg);
+            await this.SendAsync(state, msg);
 
             string tail;
             switch(msg.Type)
@@ -309,13 +309,13 @@ namespace Octovisor.Server
             }
         }
 
-        private async Task AnswerMessage(ClientState state, Message msg, string data = null, MessageStatus status = MessageStatus.Success) 
+        private async Task AnswerMessageAsync(ClientState state, Message msg, string data = null, MessageStatus status = MessageStatus.Success) 
         {
             Message replymsg = this._MessageFactory.CreateMessageResponse(msg, data, status);
-            await this.Send(state, msg);
+            await this.SendAsync(state, msg);
         }
 
-        private async Task DispatchMessage(ClientState state, Message msg)
+        private async Task DispatchMessageAsync(ClientState state, Message msg)
         {
             if (msg.IsMalformed)
             {
@@ -325,7 +325,7 @@ namespace Octovisor.Server
 
             if (this._EndpointLookup.ContainsKey(msg.TargetName) && this._EndpointLookup.ContainsKey(msg.OriginName))
             {
-                await this.ForwardMessage(msg);
+                await this.ForwardMessageAsync(msg);
                 return;
             }
             else
@@ -337,7 +337,7 @@ namespace Octovisor.Server
                 else
                 {
                     this._Logger.Warning($"{msg.OriginName} tried to forward {msg.Length} bytes to unknown remote process {msg.TargetName}");
-                    await this.AnswerMessage(state, msg, null, MessageStatus.ProcessNotFound);
+                    await this.AnswerMessageAsync(state, msg, null, MessageStatus.ProcessNotFound);
                 }
             }
         }
