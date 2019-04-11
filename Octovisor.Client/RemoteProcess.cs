@@ -7,7 +7,7 @@ namespace Octovisor.Client
     /// <summary>
     /// The representation of a remote process
     /// </summary>
-    public class RemoteProcess
+    public sealed class RemoteProcess
     {
         private readonly OctoClient Client;
 

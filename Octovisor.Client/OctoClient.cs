@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using Octovisor.Client.Exceptions;
 using Octovisor.Messages;
 using System;
@@ -68,7 +68,7 @@ namespace Octovisor.Client
         public void OnTransmission<T, TResult>(string identifier, Func<RemoteProcess, T, TResult> handler)
         {
             if (this.UsedIdentifiers.Contains(identifier))
-                throw new Exception();
+                throw new Exception($"non-unique transmission handler for \'{identifier}\'");
 
             this.MessageReceived += msg =>
             {
@@ -94,7 +94,7 @@ namespace Octovisor.Client
         public void OnTransmission<T>(string identifier, Action<RemoteProcess, T> handler)
         {
             if (this.UsedIdentifiers.Contains(identifier))
-                throw new Exception();
+                throw new Exception($"non-unique transmission handler for \'{identifier}\'");
 
             this.MessageReceived += msg =>
             {

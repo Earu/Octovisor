@@ -10,7 +10,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Octovisor.Models\Octovisor.Messages.csproj" />
+    <ProjectReference Include="..\Octovisor.Messages\Octovisor.Messages.csproj" />
   </ItemGroup>
 
   <ItemGroup>
