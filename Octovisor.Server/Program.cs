@@ -9,8 +9,8 @@ namespace Octovisor.Server
 
         private static async Task MainAsync(string[] args)
         {
-            string configpath = args.Length > 0 ? args[0] : "config.yaml";
-            Config.Initialize(configpath);
+            string configPath = args.Length > 0 ? args[0] : "config.yaml";
+            Config.Initialize(configPath);
             Server server = new Server();
             await server.RunAsync();
         }
