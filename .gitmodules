@@ -1,9 +1,0 @@
-[submodule "Octovisor.LuaClient/copas"]
-	path = Octovisor.LuaClient/copas
-	url = https://github.com/keplerproject/copas
-[submodule "Octovisor.LuaClient/dkjson"]
-	path = Octovisor.LuaClient/dkjson
-	url = https://github.com/LuaDist/dkjson
-[submodule "Octovisor.LuaClient/luasocket"]
-	path = Octovisor.LuaClient/luasocket
-	url = https://github.com/diegonehab/luasocket
