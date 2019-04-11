@@ -39,7 +39,7 @@ namespace Octovisor.Client
 
         internal event Func<Message, string> MessageReceived;
        
-        private TcpClient _Client;
+        private TcpClient Client;
 
         private readonly byte[] Buffer;
         private readonly Config Config;
@@ -71,7 +71,6 @@ namespace Octovisor.Client
             this.Reader = new MessageReader(config.MessageFinalizer);
             this.Buffer = new byte[config.BufferSize];
             this.ReceivingThread = new Thread(async () => await this.ListenAsync());
-
             this.MessageFactory = new MessageFactory();
         }
 
@@ -79,17 +78,28 @@ namespace Octovisor.Client
         private void LogEvent(string log) => this.Log?.Invoke(log);
 
         /// <summary>
-        /// Connects to the remote octovisor server
+        /// Connects to the Octovisor server
         /// </summary>
         public async Task ConnectAsync()
             => await this.InternalConnectAsync().ConfigureAwait(false);
+
+        /// <summary>
+        /// Disconnects from the Octovisor server
+        /// </summary>
+        public async Task DisconnectAsync()
+        {
+            await this.UnregisterAsync();
+            this.ReceivingThread.Abort();
+            this.Client.Dispose();
+            this.IsConnected = false;
+        }
 
         private async Task InternalConnectAsync()
         {
             try
             {
-                this._Client = new TcpClient();
-                await this._Client.ConnectAsync(this.Config.Address, this.Config.Port);
+                this.Client = new TcpClient();
+                await this.Client.ConnectAsync(this.Config.Address, this.Config.Port);
                 this.IsConnected = true;
                 this.Connected?.Invoke();
 
@@ -109,7 +119,7 @@ namespace Octovisor.Client
 
         private async Task ListenAsync()
         {
-            NetworkStream stream = this._Client.GetStream();
+            NetworkStream stream = this.Client.GetStream();
             while(this.IsConnected)
             {
                 int bytesread = await stream.ReadAsync(this.Buffer, 0, this.Config.BufferSize);
@@ -142,12 +152,14 @@ namespace Octovisor.Client
         private async Task RegisterAsync()
         {
             await this.SendAsync(this.MessageFactory.CreateRegisterMessage(this.Config.ProcessName, this.Config.Token));
+            this.IsRegistered = true;
             this.LogEvent("Registering on server");
         }
 
         private async Task UnregisterAsync()
         {
             await this.SendAsync(this.MessageFactory.CreateUnregisterMessage(this.Config.ProcessName, this.Config.Token));
+            this.IsRegistered = false;
             this.LogEvent("Ending on server");
         }
 
@@ -164,7 +176,7 @@ namespace Octovisor.Client
 
                 this.LogEvent($"Sending {data.Length} bytes\n{data}");
 
-                NetworkStream stream = this._Client.GetStream();
+                NetworkStream stream = this.Client.GetStream();
                 await stream.WriteAsync(bytedata, 0, bytedata.Length);
             }
             catch(Exception e)

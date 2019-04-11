@@ -7,7 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Octovisor.Server", "Octovis
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Octovisor.Client", "Octovisor.Client\Octovisor.Client.csproj", "{1B6F2BDA-033B-49EE-8CDC-63B613D09D51}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Octovisor.Messages", "Octovisor.Models\Octovisor.Messages.csproj", "{465E4A56-039F-4539-B320-68AD4F3ECE1F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Octovisor.Messages", "Octovisor.Messages\Octovisor.Messages.csproj", "{465E4A56-039F-4539-B320-68AD4F3ECE1F}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Octovisor.Tests.Client", "Octovisor.Tests.Client\Octovisor.Tests.Client.csproj", "{77570E73-C2BA-40CE-AA58-05815FB63C9E}"
 EndProject
