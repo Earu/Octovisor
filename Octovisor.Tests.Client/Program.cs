@@ -27,7 +27,7 @@ namespace Octovisor.Tests.Client
             await client.ConnectAsync();
             using (RemoteProcess proc = client.Use("Meta2"))
                 for (int i = 0; i < 10; i++)
-                    await proc.TransmitValueAsync("meme", 1);
+                    await proc.TransmitObjectAsync("meme", new string('A', 10000));
 
             await Task.Delay(-1);
         }
