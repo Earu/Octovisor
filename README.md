@@ -1,17 +1,9 @@
-# Octovisor
-A supervisor that makes sharing data and communication between processes easy.
-Do keep in mind that this project is still in early development.
+### Octovisor
+Octovisor is a message service that allows you to **share objects and values easily between your different .NET applications**. It is composed of a message server that will run on its own and a client API that will let you communicate with other processes using that API on the same server.
 
-# How to contribute / test ?
-I highly suggest you download the entire repository and open the .sln file in Visual Studio 2017 (with .NET Core 2.1).
-Once that's done right click Octovisor.Tests.Server "debug", "debug instance" to setup the server.
+### Current state
+Currently Octovisor is still in development, but once it is ready for its alpha the tag **\[WIP\]** will be removed from the repository description. I am always looking for help and feedback on my work, it helps me provide a quality experience, so if you believe you can help in anyways by any means do so.
 
-For the client, there are two implementations, the lua one is the most complete.
-To run the lua client you need [copas](https://github.com/keplerproject/copas), [dkjson](https://github.com/LuaDist/dkjson) and [luasocket](https://github.com/diegonehab/luasocket). Once that's done you can run it using Luajit or something similar.
 
-For the C# client that is very incomplete for now, just run the Octovisor.Tests.Client project in Visual Studio 2017, and should be settled.
-
-For contributions, develop how you like as long as folder like .vscode and .vs are added to the .gitignore, do pull request once you are finished.
-
-# What's the big idea ?
-Making applications be able to exchange data in real time wherever they are hosted without having the need to setup an API, and without having to code your own networking with sockets.
+### Future
+Once the .NET version is fully functional I might start writing other implementation of the client in other well-known languages to allow Octovisor to evolve through an extended eco-system.
