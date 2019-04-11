@@ -1,5 +1,8 @@
 ﻿namespace Octovisor.Client
 {
+    /// <summary>
+    /// The Octovisor configuration to be used with the OctoClient
+    /// </summary>
     public class Config
     {
         private string _ProcessName;
@@ -14,6 +17,9 @@
             this.BufferSize = 255;
         }
 
+        /// <summary>
+        /// The name that Octovisor will use for your application
+        /// </summary>
         public string ProcessName
         {
             get => this._ProcessName;
@@ -23,12 +29,35 @@
             } 
         }
 
+        /// <summary>
+        /// The token to use to authenticate to the Octovisor server
+        /// </summary>
         public string Token { get; set; }
+
+        /// <summary>
+        /// The port to connect to for the Octovisor server
+        /// </summary>
         public int Port { get; set; }
+
+        /// <summary>
+        /// The address to connect to for the Octovisor server
+        /// </summary>
         public string Address { get; set; }
+
+        /// <summary>
+        /// The string that will be used to segment Octovisor messages
+        /// This needs to be the same as the server, it is strongly advised to keep it set to "\0"
+        /// </summary>
         public string MessageFinalizer { get; set; }
+
+        /// <summary>
+        /// The size of the buffer used to read from socket
+        /// </summary>
         public int BufferSize { get; set; }
 
+        /// <summary>
+        /// Determines if this configuration instance is valid
+        /// </summary>
         public bool IsValid()
         {
             string[] props = new string[] { this.Token, this.ProcessName, this.Address };

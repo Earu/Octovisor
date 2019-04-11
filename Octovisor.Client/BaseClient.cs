@@ -8,6 +8,9 @@ using System.Threading.Tasks;
 
 namespace Octovisor.Client
 {
+    /// <summary>
+    /// The base Octovisor client containing the socket logic
+    /// </summary>
     public abstract class BaseClient
     {
         private int CurrentMessageID = 0;
@@ -31,6 +34,10 @@ namespace Octovisor.Client
         /// Fired when the client is registered on the remote server
         /// </summary>
         public event Action Registered;
+
+        internal event Action<ProcessUpdateData, bool> ProcessUpdate;
+
+        internal event Func<Message, string> MessageReceived;
        
         private TcpClient _Client;
 
@@ -114,9 +121,20 @@ namespace Octovisor.Client
 
                 foreach (Message msg in messages)
                 {
-                    this.LogEvent($"{msg.ID} | {msg.Identifier} | {msg.Type}");
-                    if (msg.IsMalformed)
-                        this.LogEvent(msg.Error);
+                    switch(msg.Identifier)
+                    {
+                        case MessageConstants.REGISTER_IDENTIFIER:
+                            ProcessUpdateData registerData = msg.GetData<ProcessUpdateData>();
+                            this.ProcessUpdate?.Invoke(registerData, true);
+                            break;
+                        case MessageConstants.END_IDENTIFIER:
+                            ProcessUpdateData endData = msg.GetData<ProcessUpdateData>();
+                            this.ProcessUpdate?.Invoke(endData, false);
+                            break;
+                        default:
+                            this.MessageReceived?.Invoke(msg);
+                            break;
+                    }
                 }
             }
         }
