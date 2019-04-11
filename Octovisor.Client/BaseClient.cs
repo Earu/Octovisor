@@ -114,9 +114,9 @@ namespace Octovisor.Client
 
                 foreach (Message msg in messages)
                 {
-                    this.LogEvent($"{msg.ID} | {msg.Identifier} | {msg.Status}");
-                    if (msg.Status == MessageStatus.MalformedMessageError)
-                        this.LogEvent(msg.Data);
+                    this.LogEvent($"{msg.ID} | {msg.Identifier} | {msg.Type}");
+                    if (msg.IsMalformed)
+                        this.LogEvent(msg.Error);
                 }
             }
         }

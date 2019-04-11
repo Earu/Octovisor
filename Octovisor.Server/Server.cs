@@ -19,17 +19,19 @@ namespace Octovisor.Server
         private readonly Dictionary<EndPoint, ClientState> _States;
         private readonly Dictionary<string, EndPoint> _EndpointLookup;
         private readonly Logger _Logger;
+        private readonly MessageFactory _MessageFactory;
 
         internal Server()
         {
             Console.Clear();
             Console.Title = Resources.Title;
 
-            this._ShouldRun        = true;
+            this._ShouldRun = true;
             this._MessageFinalizer = Config.Instance.MessageFinalizer;
-            this._Logger           = new Logger();
-            this._States           = new Dictionary<EndPoint, ClientState>();
-            this._EndpointLookup   = new Dictionary<string, EndPoint>();
+            this._Logger = new Logger();
+            this._MessageFactory = new MessageFactory();
+            this._States = new Dictionary<EndPoint, ClientState>();
+            this._EndpointLookup = new Dictionary<string, EndPoint>();
         }
 
         private void DisplayAsciiArt()
@@ -169,27 +171,29 @@ namespace Octovisor.Server
                 string data = Encoding.UTF8.GetString(state.Buffer, 0, bytesread);
                 List<Message> msgs = state.Reader.Read(data);
                 state.ClearBuffer();
-                bool receivemore = false;
-
                 foreach(Message msg in msgs)
                 {
                     switch (msg.Identifier)
                     {
                         case "INTERNAL_OCTOVISOR_PROCESS_INIT":
-                            receivemore = this.RegisterRemoteProcess(state, msg.OriginName, msg.Data);
-                            await this.SendbackMessage(state, msg, MessageStatus.DataResponse, receivemore.ToString().ToLower());
+                            this.RegisterRemoteProcess(state, msg.OriginName, msg.Data);
+                            await this.AnswerMessage(state, msg, state.IsRegistered ? "true" : "false", MessageStatus.Success);
                             break;
                         case "INTERNAL_OCTOVISOR_PROCESS_END":
-                            receivemore = this.EndRemoteProcess(msg.OriginName, msg.Data);
+                            this.EndRemoteProcess(msg.OriginName, msg.Data);
                             break;
                         default:
-                            receivemore = await this.DispatchMessage(state, msg);
+                            await this.DispatchMessage(state, msg);
                             break;
                     }
                 }
 
+                // Maximum register payload size is 395 bytes, the client is sending garbage.
+                if (!state.IsRegistered && state.Reader.Size >= 500)
+                    state.Reader.Clear();
+
                 // Wait again for incoming data
-                if (!state.IsDisposed && receivemore)
+                if (!state.IsDisposed && state.IsRegistered)
                     #pragma warning disable CS4014
                     this.ListenRemoteProcess(state);
                     #pragma warning restore CS4014
@@ -214,17 +218,15 @@ namespace Octovisor.Server
             }
         }
 
-        private bool RegisterRemoteProcess(ClientState state, string name, string token)
+        private void RegisterRemoteProcess(ClientState state, string name, string token)
         {
             if (token != Config.Instance.Token)
             {
                 this._Logger.Warning($"Attempt to register a remote process ({name}) with an invalid token.");
-                return false;
             }
             else if (this._States.Count >= Config.Instance.MaxProcesses)
             {
                 this._Logger.Warning($"Could not register a remote process ({name}). Exceeding the maximum amount of remote processes.");
-                return false;
             }
             else
             {
@@ -241,23 +243,20 @@ namespace Octovisor.Server
                 state.Identifier = name;
                 this._States.Add(endpoint, state);
                 this._EndpointLookup.Add(name, endpoint);
+                state.Register();
                 this._Logger.Nice("Process", ConsoleColor.Magenta, $"Registering new remote process | {name} @ {endpoint}");
-
-                return true;
             }
         }
 
-        private bool EndRemoteProcess(string name, string token)
+        private void EndRemoteProcess(string name, string token)
         {
             if (token != Config.Instance.Token)
             {
                 this._Logger.Warning($"Attempt to end a remote process ({name}) with an invalid token.");
-                return false;
             }
             else if (!this._EndpointLookup.ContainsKey(name))
             {
                 this._Logger.Warning($"Attempt to end a non-existing remote process ({name}). Discarding.");
-                return false;
             }
             else
             {
@@ -268,7 +267,6 @@ namespace Octovisor.Server
                 this._EndpointLookup.Remove(name);
 
                 this._Logger.Nice("Process", ConsoleColor.Magenta, $"Ending remote process | {name} @ {endpoint}");
-                return true;
             }
         }
 
@@ -290,57 +288,56 @@ namespace Octovisor.Server
         {
             EndPoint endpoint = this._EndpointLookup[msg.TargetName];
             ClientState state = this._States[endpoint];
+            msg.Status = MessageStatus.Success;
             await this.Send(state, msg);
 
-
-            if (msg.Status == MessageStatus.DataRequest)
+            string tail;
+            switch(msg.Type)
             {
-                string tail = $"| (ID: {msg.Identifier}) {msg.OriginName} -> {msg.TargetName}";
-                this._Logger.Nice("Message", ConsoleColor.Gray, $"Forwarded request {tail}");
-            }
-            else if (msg.Status == MessageStatus.DataResponse)
-            {
-                string tail = $"| (ID: {msg.Identifier}) {msg.OriginName} <- {msg.TargetName}";
-                this._Logger.Nice("Message", ConsoleColor.Gray, $"Forwarded response {msg.Length} bytes {tail}");
+                case MessageType.Request:
+                    tail = $"| (ID: {msg.Identifier}) {msg.OriginName} -> {msg.TargetName}";
+                    this._Logger.Nice("Message", ConsoleColor.Gray, $"Forwarded request {tail}");
+                    break;
+                case MessageType.Response:
+                    tail = $"| (ID: {msg.Identifier}) {msg.TargetName} <- {msg.OriginName}";
+                    this._Logger.Nice("Message", ConsoleColor.Gray, $"Forwarded response {msg.Length} bytes {tail}");
+                    break;
+                case MessageType.Unknown:
+                    tail = $"| (ID: {msg.Identifier}) {msg.OriginName} ?? {msg.TargetName}";
+                    this._Logger.Nice("Message", ConsoleColor.Yellow, $"Forwarded unknown message type {msg.Length} bytes {tail}");
+                    break;
             }
         }
 
-        private async Task SendbackMessage(ClientState state, Message msg, MessageStatus status, string data=null)
+        private async Task AnswerMessage(ClientState state, Message msg, string data = null, MessageStatus status = MessageStatus.Success) 
         {
-            string target  = msg.TargetName;
-            msg.TargetName = msg.OriginName;
-            msg.OriginName = target;
-            msg.Data       = data ?? msg.Data;
-            msg.Status     = status;
-
+            Message replymsg = this._MessageFactory.CreateMessageResponse(msg, data, status);
             await this.Send(state, msg);
         }
 
-        private async Task<bool> DispatchMessage(ClientState state, Message msg)
+        private async Task DispatchMessage(ClientState state, Message msg)
         {
-            if (msg.Status == MessageStatus.MalformedMessageError)
+            if (msg.IsMalformed)
             {
                 this._Logger.Warning($"Malformed message received!\n{msg.Data}");
-                return false;
+                return;
             }
 
             if (this._EndpointLookup.ContainsKey(msg.TargetName) && this._EndpointLookup.ContainsKey(msg.OriginName))
             {
                 await this.ForwardMessage(msg);
-                return true;
+                return;
             }
             else
             {
                 if (!this._EndpointLookup.ContainsKey(msg.OriginName))
                 {
                     this._Logger.Warning($"Unknown remote process {msg.OriginName} tried to forward {msg.Length} bytes to {msg.TargetName}");
-                    return false;
                 }
                 else
                 {
                     this._Logger.Warning($"{msg.OriginName} tried to forward {msg.Length} bytes to unknown remote process {msg.TargetName}");
-                    await this.SendbackMessage(state, msg, MessageStatus.ProcessNotFound);
-                    return true;
+                    await this.AnswerMessage(state, msg, null, MessageStatus.ProcessNotFound);
                 }
             }
         }

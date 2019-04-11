@@ -14,15 +14,18 @@ namespace Octovisor.Client
             this.Name = name;
         }
 
+        /// <summary>
+        /// The name of the process
+        /// </summary>
         public string Name { get; private set; }
 
         private void VerifyClientState()
         {
-            if (!this._Client.IsConnected)
-                throw new UnconnectedException();
+            //if (!this._Client.IsConnected)
+            //    throw new UnconnectedException();
 
-            if (!this._Client.IsRegistered)
-                throw new UnregisteredException();
+            //if (!this._Client.IsRegistered)
+            //    throw new UnregisteredException();
         }
 
         /// <summary>
@@ -73,8 +76,10 @@ namespace Octovisor.Client
             throw new NotImplementedException();
         }
 
+        /// <summary>
+        /// Frees all the resources used by this instance
+        /// </summary>
         public void Dispose()
-        {
-        }
+            => this._Client.DisposeOf(this.Name);
     }
 }

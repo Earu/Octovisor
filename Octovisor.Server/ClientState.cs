@@ -15,6 +15,7 @@ namespace Octovisor.Server
         public string        Identifier   { get; set; }
         public bool          IsDisposed   { get; private set; }
         public int           ParsingDepth { get; set; }
+        public bool          IsRegistered { get; private set; }
 
         public EndPoint RemoteEndPoint { get => this.Client.Client.RemoteEndPoint; }
 
@@ -25,16 +26,23 @@ namespace Octovisor.Server
             this.Client       = client;
             this.Buffer       = new byte[BufferSize];
             this.Reader       = new MessageReader(msgfinalizer);
+            this.IsRegistered = false;
         }
 
         public void ClearBuffer()
             => Array.Clear(this.Buffer, 0, this.Buffer.Length);
 
+        public void Register()
+            => this.IsRegistered = true;
+
         public void Dispose()
         {
             this.IsDisposed = true;
+            this.IsRegistered = false;
             this.Client.Close();
             this.Client.Dispose();
+            this.ClearBuffer();
+            this.Reader.Clear();
         }
     }
 }
