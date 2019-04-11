@@ -63,7 +63,7 @@ namespace Octovisor.Client
             this._Config = config;
             this._Reader = new MessageReader(config.MessageFinalizer);
             this._Buffer = new byte[config.BufferSize];
-            this._ReceivingThread = new Thread(async () => await this.Receive());
+            this._ReceivingThread = new Thread(async () => await this.ListenAsync());
 
             this.MessageFactory = new MessageFactory();
         }
@@ -75,9 +75,9 @@ namespace Octovisor.Client
         /// Connects to the remote octovisor server
         /// </summary>
         public async Task ConnectAsync()
-            => await this.InternalConnect().ConfigureAwait(false);
+            => await this.InternalConnectAsync().ConfigureAwait(false);
 
-        private async Task InternalConnect()
+        private async Task InternalConnectAsync()
         {
             try
             {
@@ -86,7 +86,7 @@ namespace Octovisor.Client
                 this.IsConnected = true;
                 this.Connected?.Invoke();
 
-                await this.Register();
+                await this.RegisterAsync();
                 this.Registered?.Invoke();
                 this._ReceivingThread.Start();
             }
@@ -100,7 +100,7 @@ namespace Octovisor.Client
         private void ClearBuffer()
             => Array.Clear(this._Buffer, 0, this._Buffer.Length);
 
-        private async Task Receive()
+        private async Task ListenAsync()
         {
             NetworkStream stream = this._Client.GetStream();
             while(this.IsConnected)
@@ -121,13 +121,13 @@ namespace Octovisor.Client
             }
         }
 
-        private async Task Register()
+        private async Task RegisterAsync()
         {
             await this.SendAsync(this.MessageFactory.CreateRegisterMessage(this._Config.ProcessName, this._Config.Token));
             this.LogEvent("Registering on server");
         }
 
-        private async Task Unregister()
+        private async Task UnregisterAsync()
         {
             await this.SendAsync(this.MessageFactory.CreateUnregisterMessage(this._Config.ProcessName, this._Config.Token));
             this.LogEvent("Ending on server");

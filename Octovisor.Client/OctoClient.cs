@@ -23,16 +23,16 @@ namespace Octovisor.Client
         }
 
         /// <summary>
-        /// Gets the list of all currently used processes
+        /// Gets the list of all currently available processes
         /// </summary>
-        public List<RemoteProcess> Processes { get => this._RemoteProcesses.Select(x => x.Value).ToList(); }
+        public List<RemoteProcess> AvailableProcesses { get => this._RemoteProcesses.Select(x => x.Value).ToList(); }
 
         /// <summary>
         /// Gets an object representing a remote process
         /// </summary>
         /// <param name="processname">The name of the remote process</param>
         /// <returns>The object representing the remote process</returns>
-        public RemoteProcess Use(string processname)
+        public RemoteProcess UseProcess(string processname)
         {
             RemoteProcess process = null;
             if (!this._RemoteProcesses.ContainsKey(processname))
