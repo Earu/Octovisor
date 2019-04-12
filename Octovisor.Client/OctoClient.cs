@@ -23,6 +23,11 @@ namespace Octovisor.Client
         /// </summary>
         public event Action<RemoteProcess> ProcessEnded;
 
+        /// <summary>
+        /// Fired whenever we receive the full list of available processes
+        /// </summary>
+        public event Action<List<RemoteProcess>> ProcessesFetched;
+
         private readonly string ProcessName;
         private readonly Dictionary<string, RemoteProcess> Processes;
         private readonly List<string> UsedIdentifiers;
@@ -38,12 +43,15 @@ namespace Octovisor.Client
             this.UsedIdentifiers = new List<string>();
 
             this.ProcessUpdate += this.OnProcessUpdate;
-            this.Registered += this.OnRegistered;
+            this.ProcessesInfoReceived += OnProcessesInfoReceived;
         }
 
-        private async Task OnRegistered()
+        private void OnProcessesInfoReceived(List<RemoteProcessData> data)
         {
-            await this.RequestProcesses();
+            this.Processes.Clear();
+            foreach (RemoteProcessData procData in data)
+                this.Processes.Add(procData.Name, new RemoteProcess(this, procData.Name));
+            this.ProcessesFetched?.Invoke(this.AvailableProcesses);
         }
 
         private void OnProcessUpdate(ProcessUpdateData updateData, bool isRegisterUpdate)
