@@ -5,7 +5,7 @@ namespace Octovisor.Server
     internal class Program
     {
         private static void Main(string[] args)
-            => MainAsync(args).ConfigureAwait(false).GetAwaiter().GetResult();
+            => MainAsync(args).ConfigureAwait(true).GetAwaiter().GetResult();
 
         private static async Task MainAsync(string[] args)
         {
