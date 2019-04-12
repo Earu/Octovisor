@@ -2,6 +2,7 @@
 using Octovisor.Messages;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
@@ -15,6 +16,12 @@ namespace Octovisor.Client
     public abstract class BaseClient
     {
         private int CurrentMessageID = 0;
+        private TcpClient Client;
+        private Thread ReceivingThread;
+
+        private readonly byte[] Buffer;
+        private readonly Config Config;
+        private readonly MessageReader Reader;
 
         /// <summary>
         /// Fired when something is logged
@@ -31,19 +38,15 @@ namespace Octovisor.Client
         /// </summary>
         public event Func<Task> Registered;
 
+        /// <summary>
+        /// Fired when the client gets disconnected from the remote server
+        /// </summary>
+        public event Func<Task> Disconnected;
+
         internal event Action<ProcessUpdateData, bool> ProcessUpdate;
-
         internal event Action<List<RemoteProcessData>> ProcessesInfoReceived;
-
         internal event Func<Message, string> MessageReceived;
        
-        private TcpClient Client;
-
-        private readonly byte[] Buffer;
-        private readonly Config Config;
-        private readonly MessageReader Reader;
-        private readonly Thread ReceivingThread;
-
         /// <summary>
         /// Gets whether or not this instance is connected 
         /// </summary>
@@ -68,7 +71,6 @@ namespace Octovisor.Client
             this.Config = config;
             this.Reader = new MessageReader(config.MessageFinalizer);
             this.Buffer = new byte[config.BufferSize];
-            this.ReceivingThread = new Thread(async () => await this.ListenAsync());
             this.MessageFactory = new MessageFactory();
             this.IsRegistered = false;
             this.IsConnected = false;
@@ -81,23 +83,20 @@ namespace Octovisor.Client
         /// </summary>
         public async Task ConnectAsync()
         {
+            if (this.IsConnected)
+                throw new AlreadyConnectedException();
+
             this.Client = new TcpClient();
             await this.Client.ConnectAsync(this.Config.Address, this.Config.Port);
             this.IsConnected = true;
-            await this.Connected?.Invoke();
+            if (this.Connected != null)
+                await this.Connected.Invoke();
+            this.ReceivingThread = new Thread(async () => await this.ListenAsync());
             this.ReceivingThread.Start();
 
             await this.RegisterAsync();
-            await this.Registered?.Invoke();
-        }
-
-        /// <summary>
-        /// Connects synchronously to the Octovisor server
-        /// </summary>
-        public void Connect()
-        {
-            Task t = this.ConnectAsync();
-            t.Wait();
+            if (this.Registered != null)
+                await this.Registered.Invoke();
         }
 
         /// <summary>
@@ -105,19 +104,18 @@ namespace Octovisor.Client
         /// </summary>
         public async Task DisconnectAsync()
         {
-            await this.UnregisterAsync();
-            this.ReceivingThread.Abort();
+            if (!this.IsConnected)
+                throw new UnconnectedException();
+
+            if (this.Client.Connected) // socket connected
+                await this.UnregisterAsync();
+
             this.Client.Dispose();
             this.IsConnected = false;
-        }
+            this.ReceivingThread = null;
 
-        /// <summary>
-        /// Disconnects synchronously from the Octovisor server
-        /// </summary>
-        public void Disconnect()
-        {
-            Task t = this.DisconnectAsync();
-            t.Wait();
+            if (this.Disconnected != null)
+                await this.Disconnected.Invoke();
         }
 
         private void ClearBuffer()
@@ -132,8 +130,30 @@ namespace Octovisor.Client
         private void HandleUpdateProcessMessage(Message msg, bool isRegisterUpdate)
         {
             ProcessUpdateData updateData = msg.GetData<ProcessUpdateData>();
-            this.ProcessUpdate?.Invoke(updateData, isRegisterUpdate);
             this.CompleteProcessUpdateTCS(updateData, isRegisterUpdate ? this.RegisterTCS : this.UnregisterTCS);
+
+            if (updateData.Accepted && !updateData.Name.Equals(this.Config.ProcessName))
+                this.ProcessUpdate?.Invoke(updateData, isRegisterUpdate);
+        }
+
+        private void HandleReceivedMessage(Message msg)
+        {
+            switch (msg.Identifier)
+            {
+                case MessageConstants.REGISTER_IDENTIFIER:
+                    this.HandleUpdateProcessMessage(msg, true);
+                    break;
+                case MessageConstants.END_IDENTIFIER:
+                    this.HandleUpdateProcessMessage(msg, false);
+                    break;
+                case MessageConstants.REQUEST_PROCESSES_INFO_IDENTIFIER:
+                    List<RemoteProcessData> processesData = msg.GetData<List<RemoteProcessData>>();
+                    this.RequestProcessesInfoTCS?.SetResult(processesData);
+                    break;
+                default:
+                    this.MessageReceived?.Invoke(msg);
+                    break;
+            }
         }
 
         private async Task ListenAsync()
@@ -141,31 +161,25 @@ namespace Octovisor.Client
             NetworkStream stream = this.Client.GetStream();
             while(this.IsConnected)
             {
-                int bytesread = await stream.ReadAsync(this.Buffer, 0, this.Config.BufferSize);
-                if (bytesread <= 0) continue;
-                
-                string data = Encoding.UTF8.GetString(this.Buffer);
-                List<Message> messages = this.Reader.Read(data);
-                this.ClearBuffer();
-
-                foreach (Message msg in messages)
+                try
                 {
-                    switch(msg.Identifier)
-                    {
-                        case MessageConstants.REGISTER_IDENTIFIER:
-                            this.HandleUpdateProcessMessage(msg, true);
-                            break;
-                        case MessageConstants.END_IDENTIFIER:
-                            this.HandleUpdateProcessMessage(msg, false);
-                            break;
-                        case MessageConstants.REQUEST_PROCESSES_INFO_IDENTIFIER:
-                            List<RemoteProcessData> processesData = msg.GetData<List<RemoteProcessData>>();
-                            this.RequestProcessesInfoTCS?.SetResult(processesData);
-                            break;
-                        default:
-                            this.MessageReceived?.Invoke(msg);
-                            break;
-                    }
+                    int bytesread = await stream.ReadAsync(this.Buffer, 0, this.Config.BufferSize);
+                    if (bytesread <= 0) continue;
+
+                    string data = Encoding.UTF8.GetString(this.Buffer);
+                    List<Message> messages = this.Reader.Read(data);
+                    this.ClearBuffer();
+
+                    foreach (Message msg in messages)
+                        this.HandleReceivedMessage(msg);
+                }
+                catch(SocketException)
+                {
+                    await this.DisconnectAsync();
+                }
+                catch(IOException)
+                {
+                    await this.DisconnectAsync();
                 }
             }
         }

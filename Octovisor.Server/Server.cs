@@ -94,7 +94,7 @@ namespace Octovisor.Server
                     await this.ListenConnectionAsync();
 
                 foreach (KeyValuePair<string, EndPoint> kv in this.EndpointLookup)
-                    this.EndProcess(kv.Key, Config.Instance.Token);
+                    await this.EndProcessAsync(kv.Key, Config.Instance.Token);
 
                 this.Listener.Stop();
             }
@@ -162,6 +162,39 @@ namespace Octovisor.Server
             });
         }
 
+        private string RequestProcessesData(string origin)
+        {
+            List<RemoteProcessData> res = new List<RemoteProcessData>();
+            foreach (KeyValuePair<EndPoint, ClientState> state in this.States)
+            {
+                string name = state.Value.Name;
+                if (!name.Equals(origin))
+                    res.Add(new RemoteProcessData(state.Value.Name));
+            }
+
+            return JsonConvert.SerializeObject(res);
+        }
+
+        private async Task HandleReceivedMessageAsync(ClientState state, Message msg)
+        {
+            switch (msg.Identifier)
+            {
+                case MessageConstants.REGISTER_IDENTIFIER:
+                    await this.RegisterProcessAsync(state, msg.OriginName, msg.Data);
+                    break;
+                case MessageConstants.END_IDENTIFIER:
+                    await this.EndProcessAsync(msg.OriginName, msg.Data);
+                    break;
+                case MessageConstants.REQUEST_PROCESSES_INFO_IDENTIFIER:
+                    string processesData = this.RequestProcessesData(msg.OriginName);
+                    await this.AnswerMessageAsync(state, msg, processesData);
+                    break;
+                default:
+                    await this.DispatchMessageAsync(state, msg);
+                    break;
+            }
+        }
+
         private async Task ListenAsync(ClientState state)
         {
             try
@@ -174,25 +207,8 @@ namespace Octovisor.Server
                 string data = Encoding.UTF8.GetString(state.Buffer, 0, bytesRead);
                 List<Message> msgs = state.Reader.Read(data);
                 state.ClearBuffer();
-                foreach(Message msg in msgs)
-                {
-                    switch (msg.Identifier)
-                    {
-                        case MessageConstants.REGISTER_IDENTIFIER:
-                            this.RegisterProcess(state, msg.OriginName, msg.Data);
-                            ProcessUpdateData registerData = new ProcessUpdateData(state.IsRegistered, msg.OriginName);
-                            await this.BroadcastMessageAsync(msg.Identifier, registerData.Serialize());
-                            break;
-                        case MessageConstants.END_IDENTIFIER:
-                            this.EndProcess(msg.OriginName, msg.Data);
-                            ProcessUpdateData endData = new ProcessUpdateData(!state.IsRegistered, msg.OriginName);
-                            await this.BroadcastMessageAsync(msg.Identifier, endData.Serialize());
-                            break;
-                        default:
-                            await this.DispatchMessageAsync(state, msg);
-                            break;
-                    }
-                }
+                foreach (Message msg in msgs)
+                    await this.HandleReceivedMessageAsync(state, msg);
 
                 // Maximum register payload size is 395 bytes, the client is sending garbage.
                 if (!state.IsRegistered && state.Reader.Size >= 500)
@@ -224,15 +240,18 @@ namespace Octovisor.Server
             }
         }
 
-        private void RegisterProcess(ClientState state, string name, string token)
+        private async Task RegisterProcessAsync(ClientState state, string name, string token)
         {
+            ProcessUpdateData data;
             if (token != Config.Instance.Token)
             {
                 this.Logger.Warning($"Attempt to register a remote process ({name}) with an invalid token.");
+                data = new ProcessUpdateData(false, name);
             }
             else if (this.States.Count >= Config.Instance.MaxProcesses)
             {
                 this.Logger.Warning($"Could not register a remote process ({name}). Exceeding the maximum amount of remote processes.");
+                data = new ProcessUpdateData(false, name);
             }
             else
             {
@@ -251,21 +270,34 @@ namespace Octovisor.Server
                 this.EndpointLookup.Add(name, endpoint);
                 state.Register();
                 this.Logger.Nice("Process", ConsoleColor.Magenta, $"Registering new remote process | {name} @ {endpoint}");
+                data = new ProcessUpdateData(true, name);
             }
+
+            await this.BroadcastMessageAsync(MessageConstants.REGISTER_IDENTIFIER, data.Serialize());
         }
 
-        private void EndProcess(string name, string token)
+        private async Task EndProcessAsync(string name, string token)
         {
+            ProcessUpdateData data;
             if (token != Config.Instance.Token)
             {
                 this.Logger.Warning($"Attempt to end a remote process ({name}) with an invalid token.");
+
+                data = new ProcessUpdateData(false, name);
+                await this.BroadcastMessageAsync(MessageConstants.END_IDENTIFIER, data.Serialize());
             }
             else if (!this.EndpointLookup.ContainsKey(name))
             {
                 this.Logger.Warning($"Attempt to end a non-existing remote process ({name}). Discarding.");
+
+                data = new ProcessUpdateData(false, name);
+                await this.BroadcastMessageAsync(MessageConstants.END_IDENTIFIER, data.Serialize());
             }
             else
             {
+                data = new ProcessUpdateData(true, name);
+                await this.BroadcastMessageAsync(MessageConstants.END_IDENTIFIER, data.Serialize());
+
                 EndPoint endpoint = this.EndpointLookup[name];
                 ClientState state = this.States[endpoint];
                 state.Dispose();

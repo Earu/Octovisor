@@ -6,5 +6,10 @@ namespace Octovisor.Messages
     {
         [JsonProperty(PropertyName = "name")]
         public string Name { get; set; }
+
+        public RemoteProcessData(string name)
+        {
+            this.Name = name;
+        }
     }
 }

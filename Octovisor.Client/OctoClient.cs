@@ -43,7 +43,7 @@ namespace Octovisor.Client
             this.UsedIdentifiers = new List<string>();
 
             this.ProcessUpdate += this.OnProcessUpdate;
-            this.ProcessesInfoReceived += OnProcessesInfoReceived;
+            this.ProcessesInfoReceived += this.OnProcessesInfoReceived;
         }
 
         private void OnProcessesInfoReceived(List<RemoteProcessData> data)
@@ -56,8 +56,6 @@ namespace Octovisor.Client
 
         private void OnProcessUpdate(ProcessUpdateData updateData, bool isRegisterUpdate)
         {
-            if (!updateData.Accepted) return;
-
             if (isRegisterUpdate)
             {
                 RemoteProcess proc = new RemoteProcess(this, updateData.Name);
