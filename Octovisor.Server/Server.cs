@@ -199,8 +199,7 @@ namespace Octovisor.Server
         {
             try
             {
-                TcpClient client = state.Client;
-                NetworkStream stream = client.GetStream();
+                NetworkStream stream = state.Stream;
                 int bytesRead = await stream.ReadAsync(state.Buffer);
                 if (bytesRead <= 0) return;
 
@@ -230,9 +229,10 @@ namespace Octovisor.Server
         {
             try
             {
-                NetworkStream stream = state.Client.GetStream();
-                byte[] bytes = Encoding.UTF8.GetBytes($"{msg.Serialize()}{this.MessageFinalizer}");
+                NetworkStream stream = state.Stream;
+                byte[] bytes = Encoding.UTF8.GetBytes(msg.Serialize() + this.MessageFinalizer);
                 await stream.WriteAsync(bytes);
+                await stream.FlushAsync();
             }
             catch (Exception e)
             {
