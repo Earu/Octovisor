@@ -15,9 +15,10 @@ namespace Octovisor.Client
     /// </summary>
     public abstract class BaseClient
     {
-        private int CurrentMessageID = 0;
+        private int CurrentMessageID ;
         private TcpClient Client;
         private Thread ReceivingThread;
+        private NetworkStream Stream;
 
         private readonly byte[] Buffer;
         private readonly Config Config;
@@ -86,9 +87,11 @@ namespace Octovisor.Client
             if (this.IsConnected)
                 throw new AlreadyConnectedException();
 
+            this.CurrentMessageID = 0;
             this.Client = new TcpClient();
             await this.Client.ConnectAsync(this.Config.Address, this.Config.Port);
             this.IsConnected = true;
+            this.Stream = this.Client.GetStream();
             if (this.Connected != null)
                 await this.Connected.Invoke();
             this.ReceivingThread = new Thread(async () => await this.ListenAsync());
@@ -110,6 +113,7 @@ namespace Octovisor.Client
             if (this.Client.Connected) // socket connected
                 await this.UnregisterAsync();
 
+            this.Stream.Dispose();
             this.Client.Dispose();
             this.IsConnected = false;
             this.ReceivingThread = null;
@@ -151,17 +155,18 @@ namespace Octovisor.Client
                     this.RequestProcessesInfoTCS?.SetResult(processesData);
                     break;
                 default:
-                    this.MessageReceived?.Invoke(msg);
+                    string result = this.MessageReceived?.Invoke(msg);
+                    //if (result != null)
                     break;
             }
         }
 
         private async Task ListenAsync()
         {
-            NetworkStream stream = this.Client.GetStream();
-            while(this.IsConnected)
+            NetworkStream stream = this.Stream;
+            try
             {
-                try
+                while (this.IsConnected)
                 {
                     int bytesread = await stream.ReadAsync(this.Buffer, 0, this.Config.BufferSize);
                     if (bytesread <= 0) continue;
@@ -173,14 +178,10 @@ namespace Octovisor.Client
                     foreach (Message msg in messages)
                         this.HandleReceivedMessage(msg);
                 }
-                catch(SocketException)
-                {
-                    await this.DisconnectAsync();
-                }
-                catch(IOException)
-                {
-                    await this.DisconnectAsync();
-                }
+            }
+            catch (Exception ex) when (ex is SocketException || ex is IOException)
+            {
+                await this.DisconnectAsync();
             }
         }
 
@@ -236,13 +237,13 @@ namespace Octovisor.Client
 
             msg.ID = this.CurrentMessageID;
             Interlocked.Increment(ref this.CurrentMessageID);
-            string data = $"{msg.Serialize()}{this.Config.MessageFinalizer}";
+            string data = msg.Serialize() + this.Config.MessageFinalizer;
             byte[] bytedata = Encoding.UTF8.GetBytes(data);
 
-            this.LogEvent($"Sending {data.Length} bytes\n{data}");
-
-            NetworkStream stream = this.Client.GetStream();
+            this.LogEvent($"Sending {data.Length} bytes");
+            NetworkStream stream = this.Stream;
             await stream.WriteAsync(bytedata, 0, bytedata.Length);
+            await stream.FlushAsync();
         }
     }
 }
