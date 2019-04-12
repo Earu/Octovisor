@@ -66,29 +66,5 @@ namespace Octovisor.Client
 
             await this.Client.TransmitValueAsync(identifier, this.Name, value);
         }
-
-        /// <summary>
-        /// Awaits to receive an object using a specified identifier
-        /// </summary>
-        /// <param name="identifier">The identifier to use to check inbound objects</param>
-        /// <returns>An instance of the awaited object type</returns>
-        public async Task<T> ReceiveObjectAsync<T>(string identifier) where T : class
-        {
-            this.ValidateTransmission(identifier);
-
-            throw new NotImplementedException();
-        }
-
-        /// <summary>
-        /// Awaits to receive a value using a specified identifier
-        /// </summary>
-        /// <param name="identifier">The identifier to use to check inbound values</param>
-        /// <returns>An instance of the awaited value type</returns>
-        public async Task<T> ReceiveValueAsync<T>(string identifier) where T : struct
-        {
-            this.ValidateTransmission(identifier);
-
-            throw new NotImplementedException();
-        }
     }
 }

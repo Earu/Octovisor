@@ -32,6 +32,21 @@
             return msg;
         }
 
+        public Message CreateRequestProcessesInfoMessage(string processName)
+        {
+            Message msg = new Message
+            {
+                OriginName = processName,
+                TargetName = MessageConstants.SERVER_PROCESS_NAME,
+                Identifier = MessageConstants.REQUEST_PROCESSES_INFO_IDENTIFIER,
+                Data = null,
+                Type = MessageType.Request,
+                Status = MessageStatus.Unknown
+            };
+
+            return msg;
+        }
+
         public Message CreateMessage(string identifier, string originName, string targetName, string payload)
         {
             Message msg = new Message

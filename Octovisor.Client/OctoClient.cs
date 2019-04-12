@@ -38,6 +38,12 @@ namespace Octovisor.Client
             this.UsedIdentifiers = new List<string>();
 
             this.ProcessUpdate += this.OnProcessUpdate;
+            this.Registered += this.OnRegistered;
+        }
+
+        private async Task OnRegistered()
+        {
+            await this.RequestProcesses();
         }
 
         private void OnProcessUpdate(ProcessUpdateData updateData, bool isRegisterUpdate)
@@ -68,7 +74,7 @@ namespace Octovisor.Client
         public void OnTransmission<T, TResult>(string identifier, Func<RemoteProcess, T, TResult> handler)
         {
             if (this.UsedIdentifiers.Contains(identifier))
-                throw new Exception($"non-unique transmission handler for \'{identifier}\'");
+                throw new NonUniqueIdentifierException(identifier);
 
             this.MessageReceived += msg =>
             {
@@ -94,7 +100,7 @@ namespace Octovisor.Client
         public void OnTransmission<T>(string identifier, Action<RemoteProcess, T> handler)
         {
             if (this.UsedIdentifiers.Contains(identifier))
-                throw new Exception($"non-unique transmission handler for \'{identifier}\'");
+                throw new NonUniqueIdentifierException(identifier);
 
             this.MessageReceived += msg =>
             {
@@ -105,7 +111,7 @@ namespace Octovisor.Client
                 RemoteProcess proc = this.GetProcess(msg.OriginName);
                 handler(proc, data);
 
-                return "uhh";
+                return string.Empty;
             };
 
             this.UsedIdentifiers.Add(identifier);

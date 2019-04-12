@@ -25,6 +25,7 @@ namespace Octovisor.Tests.Client2
             client.Log += log => Console.WriteLine(log);
 
             await client.ConnectAsync();
+            Console.WriteLine(client.IsRegistered);
             await Task.Delay(-1);
         }
     }
