@@ -183,6 +183,7 @@ namespace Octovisor.Client
             if (accepted)
                 this.IsRegistered = true;
             this.RegisterTCS = null;
+            await this.RequestProcessesInfoAsync();
         }
 
         private TaskCompletionSource<bool> UnregisterTCS;
