@@ -6,7 +6,8 @@ namespace Octovisor.Tests.Client
 {
     class Program
     {
-        static void Main() => MainAsync().GetAwaiter().GetResult();
+        static void Main()
+            => MainAsync().GetAwaiter().GetResult();
         static async Task MainAsync()
         {
             Console.Title = "Octovisor Client";
@@ -20,8 +21,6 @@ namespace Octovisor.Tests.Client
             };
 
             OctoClient client = new OctoClient(config);
-
-            client.ExceptionThrown += e => Console.WriteLine(e);
             client.Log += log => Console.WriteLine(log);
 
             await client.ConnectAsync();
