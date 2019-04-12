@@ -19,27 +19,30 @@ namespace Octovisor.Messages
 
         public int Size { get => this.Builder.Length; }
 
+        public string Value { get => this.Builder.ToString(); }
+
         public List<Message> Read(string content)
         {
+            string current;
             List<Message> msgs = new List<Message>();
+            int finalizerLen = this.MessageFinalizer.Length;
             foreach (char c in content)
             {
                 this.Builder.Append(c);
 
-                string current = this.Builder.ToString();
-                int finalizerLen = this.MessageFinalizer.Length;
+                current = this.Value;
                 if (current.Length >= finalizerLen && current.EndsWith(this.MessageFinalizer))
                 {
                     string smsg = current.Substring(0, current.Length - finalizerLen);
                     if (!string.IsNullOrWhiteSpace(smsg))
                         msgs.Add(Message.Deserialize(smsg));
 
-                    this.Builder.Clear();
+                    this.Clear();
                 }
             }
 
-            if (this.Builder.Length >= Treshold)
-                this.Builder.Clear();
+            if (this.Size >= Treshold)
+                this.Clear();
 
             return msgs;
         }

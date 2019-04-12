@@ -1,5 +1,6 @@
 ﻿using Octovisor.Messages;
 using System;
+using System.IO.Compression;
 using System.Net;
 using System.Net.Sockets;
 
@@ -9,24 +10,26 @@ namespace Octovisor.Server
     {
         public const int BufferSize = 256;
 
-        public TcpClient     Client       { get; set; }
-        public byte[]        Buffer       { get; private set; }
-        public MessageReader Reader       { get; }
-        public string        Name   { get; set; }
-        public bool          IsDisposed   { get; private set; }
-        public int           ParsingDepth { get; set; }
-        public bool          IsRegistered { get; private set; }
+        public TcpClient Client { get; set; }
+        public byte[] Buffer { get; private set; }
+        public MessageReader Reader { get; }
+        public string Name { get; set; }
+        public bool IsDisposed { get; private set; }
+        public int ParsingDepth { get; set; }
+        public bool IsRegistered { get; private set; }
+        public NetworkStream Stream { get; private set; }
 
         public EndPoint RemoteEndPoint { get => this.Client.Client.RemoteEndPoint; }
 
         public ClientState(TcpClient client, string messageFinalizer)
         {
             this.ParsingDepth = 0;
-            this.IsDisposed   = false;
-            this.Client       = client;
-            this.Buffer       = new byte[BufferSize];
-            this.Reader       = new MessageReader(messageFinalizer);
+            this.IsDisposed = false;
+            this.Client = client;
+            this.Buffer = new byte[BufferSize];
+            this.Reader = new MessageReader(messageFinalizer);
             this.IsRegistered = false;
+            this.Stream = this.Client.GetStream();
         }
 
         public void ClearBuffer()
@@ -39,6 +42,7 @@ namespace Octovisor.Server
         {
             this.IsDisposed = true;
             this.IsRegistered = false;
+            this.Stream.Dispose();
             this.Client.Close();
             this.Client.Dispose();
             this.ClearBuffer();
