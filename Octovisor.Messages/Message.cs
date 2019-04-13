@@ -64,11 +64,11 @@ namespace Octovisor.Messages
 
             try
             {
-                return JsonConvert.DeserializeObject<T>(this.Data);
+                return MessageSerializer.Deserialize<T>(this.Data);
             }
             catch
             {
-                return default(T);
+                return default;
             }
         }
 
@@ -76,7 +76,7 @@ namespace Octovisor.Messages
         {
             try
             {
-                return JsonConvert.DeserializeObject<Message>(json);
+                return MessageSerializer.Deserialize<Message>(json);
             }
             catch (Exception ex)
             {
@@ -95,6 +95,6 @@ namespace Octovisor.Messages
         }
 
         public string Serialize()
-            => JsonConvert.SerializeObject(this);
+            => MessageSerializer.Serialize(this);
     }
 }
