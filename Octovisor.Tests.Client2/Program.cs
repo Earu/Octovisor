@@ -1,5 +1,4 @@
 ﻿using Octovisor.Client;
-using Octovisor.Messages;
 using System;
 using System.Threading.Tasks;
 
@@ -21,13 +20,15 @@ namespace Octovisor.Tests.Client2
                 ProcessName = "Meta2",
             };
 
-            BaseClient client = new OctoClient(config);
+            OctoClient client = new OctoClient(config);
             client.Log += log => Console.WriteLine(log);
 
             await client.ConnectAsync();
-            await client.DisconnectAsync();
-            await client.ConnectAsync();
-            Console.WriteLine(client.IsRegistered);
+            client.OnTransmission<string, string>("meme", (proc, data) =>
+            {
+                return "no u";
+            });
+
             await Task.Delay(-1);
         }
     }

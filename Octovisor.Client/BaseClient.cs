@@ -140,7 +140,32 @@ namespace Octovisor.Client
                 this.ProcessUpdate?.Invoke(updateData, isRegisterUpdate);
         }
 
-        private void HandleReceivedMessage(Message msg)
+        private void HandleRequestProcessesMessage(Message msg)
+        {
+            List<RemoteProcessData> processesData = msg.GetData<List<RemoteProcessData>>();
+            this.RequestProcessesInfoTCS?.SetResult(processesData);
+        }
+
+        private async Task HandleMessageResponseAsync(Message msg)
+        {
+            string data;
+            MessageStatus status;
+            try
+            {
+                data = this.MessageReceived?.Invoke(msg);
+                status = MessageStatus.Unknown;
+            }
+            catch (Exception ex)
+            {
+                data = ex.Message;
+                status = MessageStatus.TargetError;
+            }
+
+            Message responseMsg = this.MessageFactory.CreateMessageResponse(msg, data, status);
+            await this.SendAsync(responseMsg);
+        }
+
+        private async Task HandleReceivedMessageAsync(Message msg)
         {
             switch (msg.Identifier)
             {
@@ -151,12 +176,13 @@ namespace Octovisor.Client
                     this.HandleUpdateProcessMessage(msg, false);
                     break;
                 case MessageConstants.REQUEST_PROCESSES_INFO_IDENTIFIER:
-                    List<RemoteProcessData> processesData = msg.GetData<List<RemoteProcessData>>();
-                    this.RequestProcessesInfoTCS?.SetResult(processesData);
+                    this.HandleRequestProcessesMessage(msg);
                     break;
                 default:
-                    string result = this.MessageReceived?.Invoke(msg);
-                    //if (result != null)
+                    if (msg.Type == MessageType.Request)
+                        await this.HandleMessageResponseAsync(msg);
+                    else
+                        this.LogEvent(msg.OriginName);
                     break;
             }
         }
@@ -176,7 +202,7 @@ namespace Octovisor.Client
                     this.ClearBuffer();
 
                     foreach (Message msg in messages)
-                        this.HandleReceivedMessage(msg);
+                        await this.HandleReceivedMessageAsync(msg);
                 }
             }
             catch (Exception ex) when (ex is SocketException || ex is IOException)
@@ -188,7 +214,7 @@ namespace Octovisor.Client
         private TaskCompletionSource<bool> RegisterTCS;
         private async Task RegisterAsync()
         {
-            await this.SendAsync(this.MessageFactory.CreateRegisterMessage(this.Config.ProcessName, this.Config.Token));
+            await this.SendAsync(this.MessageFactory.CreateClientRegisterMessage(this.Config.ProcessName, this.Config.Token));
             this.LogEvent("Registering on server");
 
             this.RegisterTCS = new TaskCompletionSource<bool>();
@@ -204,7 +230,7 @@ namespace Octovisor.Client
         private TaskCompletionSource<bool> UnregisterTCS;
         private async Task UnregisterAsync()
         {
-            await this.SendAsync(this.MessageFactory.CreateUnregisterMessage(this.Config.ProcessName, this.Config.Token));
+            await this.SendAsync(this.MessageFactory.CreateClientUnregisterMessage(this.Config.ProcessName, this.Config.Token));
             this.LogEvent("Ending on server");
 
             this.UnregisterTCS = new TaskCompletionSource<bool>();
@@ -219,7 +245,7 @@ namespace Octovisor.Client
         private TaskCompletionSource<List<RemoteProcessData>> RequestProcessesInfoTCS;
         private async Task RequestProcessesInfoAsync()
         {
-            await this.SendAsync(this.MessageFactory.CreateRequestProcessesInfoMessage(this.Config.ProcessName));
+            await this.SendAsync(this.MessageFactory.CreateClientRequestProcessesInfoMessage(this.Config.ProcessName));
             this.LogEvent("Requesting available processes information");
 
             this.RequestProcessesInfoTCS = new TaskCompletionSource<List<RemoteProcessData>>();

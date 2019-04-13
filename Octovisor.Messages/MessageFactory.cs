@@ -2,7 +2,7 @@
 {
     public class MessageFactory
     {
-        public Message CreateRegisterMessage(string processName, string token)
+        public Message CreateClientRegisterMessage(string processName, string token)
         {
             Message msg = new Message
             {
@@ -17,7 +17,7 @@
             return msg;
         }
 
-        public Message CreateUnregisterMessage(string processName, string token)
+        public Message CreateClientUnregisterMessage(string processName, string token)
         {
             Message msg = new Message
             {
@@ -32,7 +32,7 @@
             return msg;
         }
 
-        public Message CreateRequestProcessesInfoMessage(string processName)
+        public Message CreateClientRequestProcessesInfoMessage(string processName)
         {
             Message msg = new Message
             {
@@ -47,7 +47,7 @@
             return msg;
         }
 
-        public Message CreateMessage(string identifier, string originName, string targetName, string payload)
+        public Message CreateMessageRequest(string identifier, string originName, string targetName, string payload)
         {
             Message msg = new Message
             {
