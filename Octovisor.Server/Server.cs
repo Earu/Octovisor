@@ -172,7 +172,7 @@ namespace Octovisor.Server
                     res.Add(new RemoteProcessData(state.Value.Name));
             }
 
-            return JsonConvert.SerializeObject(res);
+            return MessageSerializer.Serialize(res);
         }
 
         private async Task HandleReceivedMessageAsync(ClientState state, Message msg)

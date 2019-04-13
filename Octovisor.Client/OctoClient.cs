@@ -150,7 +150,7 @@ namespace Octovisor.Client
 
         internal async Task TransmitObjectAsync<T>(string identifier, string target, T obj) where T : class
         {
-            string payload = JsonConvert.SerializeObject(obj);
+            string payload = MessageSerializer.Serialize(obj);
             Message msg = this.MessageFactory.CreateMessage(identifier, this.ProcessName, target, payload);
             await this.SendAsync(msg);
         }
