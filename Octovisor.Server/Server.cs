@@ -324,12 +324,10 @@ namespace Octovisor.Server
 
         private async Task ForwardMessageAsync(Message msg)
         {
+            string tail;
             EndPoint endpoint = this.EndpointLookup[msg.TargetName];
             ClientState state = this.States[endpoint];
-            msg.Status = MessageStatus.Success;
-            await this.SendAsync(state, msg);
-
-            string tail;
+            msg.Status = msg.Status != MessageStatus.Unknown ? msg.Status : MessageStatus.Success;
             switch(msg.Type)
             {
                 case MessageType.Request:
@@ -337,14 +335,16 @@ namespace Octovisor.Server
                     this.Logger.Nice("Message", ConsoleColor.Gray, $"Forwarded request {tail}");
                     break;
                 case MessageType.Response:
-                    tail = $"| (ID: {msg.Identifier}) {msg.TargetName} <- {msg.OriginName}";
-                    this.Logger.Nice("Message", ConsoleColor.Gray, $"Forwarded response {msg.Length} bytes {tail}");
+                    tail = $"| (ID: {msg.Identifier}) {msg.OriginName} -> {msg.TargetName}";
+                    this.Logger.Nice("Message", ConsoleColor.Gray, $"Forwarded response {tail}");
                     break;
                 case MessageType.Unknown:
                     tail = $"| (ID: {msg.Identifier}) {msg.OriginName} ?? {msg.TargetName}";
                     this.Logger.Nice("Message", ConsoleColor.Yellow, $"Forwarded unknown message type {msg.Length} bytes {tail}");
                     break;
             }
+
+            await this.SendAsync(state, msg);
         }
 
         private async Task AnswerMessageAsync(ClientState state, Message msg, string data = null, MessageStatus status = MessageStatus.Success) 

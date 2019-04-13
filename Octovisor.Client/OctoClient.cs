@@ -1,4 +1,3 @@
-using Newtonsoft.Json;
 using Octovisor.Client.Exceptions;
 using Octovisor.Messages;
 using System;
@@ -30,7 +29,7 @@ namespace Octovisor.Client
 
         private readonly string ProcessName;
         private readonly Dictionary<string, RemoteProcess> Processes;
-        private readonly List<string> UsedIdentifiers;
+        private readonly Dictionary<string, Func<Message, string>> TransmissionHandlers;
 
         /// <summary>
         /// Instanciates a new OctoClient
@@ -40,10 +39,19 @@ namespace Octovisor.Client
         {
             this.ProcessName = config.ProcessName;
             this.Processes = new Dictionary<string, RemoteProcess>();
-            this.UsedIdentifiers = new List<string>();
+            this.TransmissionHandlers = new Dictionary<string, Func<Message, string>>();
 
             this.ProcessUpdate += this.OnProcessUpdate;
             this.ProcessesInfoReceived += this.OnProcessesInfoReceived;
+            this.MessageReceived += this.OnMessageReceived;
+        }
+
+        private string OnMessageReceived(Message msg)
+        {
+            if (this.TransmissionHandlers.ContainsKey(msg.Identifier))
+                return this.TransmissionHandlers[msg.Identifier](msg);
+
+            return null;
         }
 
         private void OnProcessesInfoReceived(List<RemoteProcessData> data)
@@ -79,22 +87,17 @@ namespace Octovisor.Client
         /// <param name="handler">The handler to be called when receiving a transmission</param>
         public void OnTransmission<T, TResult>(string identifier, Func<RemoteProcess, T, TResult> handler)
         {
-            if (this.UsedIdentifiers.Contains(identifier))
+            if (this.TransmissionHandlers.ContainsKey(identifier))
                 throw new NonUniqueIdentifierException(identifier);
 
-            this.MessageReceived += msg =>
+            this.TransmissionHandlers.Add(identifier, msg =>
             {
-                if (!msg.Identifier.Equals(identifier))
-                    return null;
-
                 T data = msg.GetData<T>();
                 RemoteProcess proc = this.GetProcess(msg.OriginName);
                 TResult result = handler(proc, data);
 
-                return JsonConvert.SerializeObject(result);
-            };
-
-            this.UsedIdentifiers.Add(identifier);
+                return MessageSerializer.Serialize(result);
+            });
         }
 
         /// <summary>
@@ -105,22 +108,17 @@ namespace Octovisor.Client
         /// <param name="handler">The handler to be called when receiving a transmission</param>
         public void OnTransmission<T>(string identifier, Action<RemoteProcess, T> handler)
         {
-            if (this.UsedIdentifiers.Contains(identifier))
+            if (this.TransmissionHandlers.ContainsKey(identifier))
                 throw new NonUniqueIdentifierException(identifier);
 
-            this.MessageReceived += msg =>
+            this.TransmissionHandlers.Add(identifier, msg =>
             {
-                if (!msg.Identifier.Equals(identifier))
-                    return null;
-
                 T data = msg.GetData<T>();
                 RemoteProcess proc = this.GetProcess(msg.OriginName);
                 handler(proc, data);
 
-                return string.Empty;
-            };
-
-            this.UsedIdentifiers.Add(identifier);
+                return null;
+            });
         }
 
         /// <summary>
@@ -151,14 +149,14 @@ namespace Octovisor.Client
         internal async Task TransmitObjectAsync<T>(string identifier, string target, T obj) where T : class
         {
             string payload = MessageSerializer.Serialize(obj);
-            Message msg = this.MessageFactory.CreateMessage(identifier, this.ProcessName, target, payload);
+            Message msg = this.MessageFactory.CreateMessageRequest(identifier, this.ProcessName, target, payload);
             await this.SendAsync(msg);
         }
 
         internal async Task TransmitValueAsync<T>(string identifier, string target, T value) where T : struct
         {
             string data = value.ToString();
-            Message msg = this.MessageFactory.CreateMessage(identifier, this.ProcessName, target, data);
+            Message msg = this.MessageFactory.CreateMessageRequest(identifier, this.ProcessName, target, data);
             await this.SendAsync(msg);
         }
     }
