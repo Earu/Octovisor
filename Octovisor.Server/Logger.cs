@@ -6,6 +6,8 @@ namespace Octovisor.Server
 {
     internal class Logger
     {
+        internal static object Locker = new object();
+
         private static readonly string Prefix = "> ";
         private static readonly string Path = "logs";
 
@@ -36,7 +38,12 @@ namespace Octovisor.Server
         }
 
         internal void LogTo(string fileName, string msg)
-            => File.AppendAllText($"{Path}/{fileName}", $"{DateTime.Now} - {msg}\n");
+        {
+            lock(Locker)
+            {
+                File.AppendAllText($"{Path}/{fileName}", $"{DateTime.Now} - {msg}\n");
+            }
+        }
 
         public void Normal(string msg)
         {
@@ -99,24 +106,6 @@ namespace Octovisor.Server
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine(msg);
             this.LogTo(this._MainLogFile, $"[GOOD] >> {msg}");
-        }
-
-        public void Notify(string msg)
-            => Console.WriteLine($"\n\t---------\\\\\\\\ {msg} ////---------\n");
-
-        public static void Debug(string msg)
-        {
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.Write("Debug");
-            Console.ForegroundColor = ConsoleColor.Gray;
-            Console.Write(" >> ");
-            Console.WriteLine(msg);
-        }
-
-        public static void Debug(List<string> msgs)
-        {
-            foreach (string msg in msgs)
-                Debug(msg);
         }
     }
 }

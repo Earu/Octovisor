@@ -46,6 +46,22 @@ namespace Octovisor.Client
         /// <summary>
         /// Transmits an object to the remote process
         /// </summary>
+        /// <typeparam name="T">The type of the object we are transmiting</typeparam>
+        /// <typeparam name="TResult">The type of the object/value we are expecting to receive</typeparam>
+        /// <param name="identifier">The identifier to use when transmiting the object</param>
+        /// <param name="obj">The object to transmit</param>
+        /// <returns>An instance of the expected object/value type</returns>
+        public async Task<TResult> TransmitObjectAsync<T, TResult>(string identifier, T obj) where T : class
+        {
+            this.ValidateTransmission(identifier);
+
+            return await this.Client.TransmitObjectAsync<T, TResult>(identifier, this.Name, obj);
+        }
+
+        /// <summary>
+        /// Transmits an object to the remote process
+        /// </summary>
+        /// <typeparam name="T">The type of the object we are transmiting</typeparam>
         /// <param name="identifier">The identifier to use when transmiting the object</param>
         /// <param name="obj">The object to transmit</param>
         public async Task TransmitObjectAsync<T>(string identifier, T obj) where T : class
@@ -58,13 +74,28 @@ namespace Octovisor.Client
         /// <summary>
         /// Transmits a non-object value (ValueType) to the remote process 
         /// </summary>
+        /// <typeparam name="T">The type of the value we are transmitting</typeparam>
+        /// <typeparam name="TResult">The type of the object/value we are expecting to receive</typeparam>
+        /// <param name="identifier">The identifier to use when transmiting the value</param>
+        /// <param name="value">The value to transmit</param>
+        /// <returns>An instance of the expected object/value type</returns>
+        public async Task<TResult> TransmitValueAsync<T, TResult>(string identifier, T value) where T : struct
+        {
+            this.ValidateTransmission(identifier);
+
+            return await this.Client.TransmitValueAsync<T, TResult>(identifier, this.Name, value);
+        }
+
+        /// <summary>
+        /// Transmits a non-object value (ValueType) to the remote process 
+        /// </summary>
         /// <param name="identifier">The identifier to use when transmiting the object</param>
         /// <param name="value">The value to transmit</param>
         public async Task TransmitValueAsync<T>(string identifier, T value) where T : struct
         {
             this.ValidateTransmission(identifier);
 
-            await this.Client.TransmitValueAsync(identifier, this.Name, value);
+            await this.Client.TransmitValueAsync<T>(identifier, this.Name, value);
         }
     }
 }

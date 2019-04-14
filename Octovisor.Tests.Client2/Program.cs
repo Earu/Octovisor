@@ -10,8 +10,6 @@ namespace Octovisor.Tests.Client2
             => MainAsync().GetAwaiter().GetResult();
         static async Task MainAsync()
         {
-            Console.Title = "Octovisor Client";
-
             Config config = new Config
             {
                 Token = "you're cool",
@@ -21,13 +19,10 @@ namespace Octovisor.Tests.Client2
             };
 
             OctoClient client = new OctoClient(config);
-            client.Log += log => Console.WriteLine(log);
+            client.Log += Console.WriteLine;
 
             await client.ConnectAsync();
-            client.OnTransmission<string, string>("meme", (proc, data) =>
-            {
-                return "no u";
-            });
+            client.OnTransmission<string, string>("meme", (proc, data) => "no u");
 
             await Task.Delay(-1);
         }

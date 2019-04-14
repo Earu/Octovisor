@@ -10,8 +10,6 @@ namespace Octovisor.Tests.Client
             => MainAsync().GetAwaiter().GetResult();
         static async Task MainAsync()
         {
-            Console.Title = "Octovisor Client";
-
             Config config = new Config
             {
                 Token = "you're cool",
@@ -21,12 +19,15 @@ namespace Octovisor.Tests.Client
             };
 
             OctoClient client = new OctoClient(config);
-            client.Log += log => Console.WriteLine(log);
+            client.Log += Console.WriteLine;
 
             await client.ConnectAsync();
             RemoteProcess proc = client.GetProcess("Meta2");
             for (int i = 0; i < 10; i++)
-                await proc.TransmitObjectAsync("meme", new string('A', 10000));
+            {
+                string result = await proc.TransmitObjectAsync<string, string>("meme", new string('A', 10000));
+                Console.WriteLine(result);
+            }
 
             await Task.Delay(-1);
         }
