@@ -3,6 +3,7 @@ using Octovisor.Messages;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Octovisor.Client
@@ -30,6 +31,7 @@ namespace Octovisor.Client
         private readonly string ProcessName;
         private readonly Dictionary<string, RemoteProcess> Processes;
         private readonly Dictionary<string, Func<Message, string>> TransmissionHandlers;
+        private readonly Dictionary<int, TaskCompletionSource<string>> TransmissionTCSs;
 
         /// <summary>
         /// Instanciates a new OctoClient
@@ -40,13 +42,21 @@ namespace Octovisor.Client
             this.ProcessName = config.ProcessName;
             this.Processes = new Dictionary<string, RemoteProcess>();
             this.TransmissionHandlers = new Dictionary<string, Func<Message, string>>();
+            this.TransmissionTCSs = new Dictionary<int, TaskCompletionSource<string>>();
 
             this.ProcessUpdate += this.OnProcessUpdate;
             this.ProcessesInfoReceived += this.OnProcessesInfoReceived;
-            this.MessageReceived += this.OnMessageReceived;
+            this.MessageRequestReceived += this.OnMessageRequestReceived;
+            this.MessageResponseReceived += this.OnMessageResponseReceived;
         }
 
-        private string OnMessageReceived(Message msg)
+        private void OnMessageResponseReceived(Message msg)
+        {
+            if (this.TransmissionTCSs.ContainsKey(msg.ID))
+                this.TransmissionTCSs[msg.ID].SetResult(msg.Data);
+        }
+
+        private string OnMessageRequestReceived(Message msg)
         {
             if (this.TransmissionHandlers.ContainsKey(msg.Identifier))
                 return this.TransmissionHandlers[msg.Identifier](msg);
@@ -146,11 +156,46 @@ namespace Octovisor.Client
                 throw new UnknownRemoteProcessException(processName);
         }
 
+        internal async Task<T> HandleTransmissionResultAsync<T>(int id)
+        {
+            TaskCompletionSource<string> tcs = new TaskCompletionSource<string>();
+            CancellationTokenSource cts = new CancellationTokenSource(5000);
+            cts.Token.Register(() =>
+            {
+                if (!tcs.Task.IsCompleted)
+                    tcs.SetException(new TimeOutException());
+            }, false);
+
+            this.TransmissionTCSs.Add(id, tcs);
+            string result = await tcs.Task;
+            this.TransmissionTCSs.Remove(id);
+
+            return MessageSerializer.Deserialize<T>(result);
+        }
+
+        internal async Task<TResult> TransmitObjectAsync<T, TResult>(string identifier, string target, T obj) where T : class
+        {
+            string payload = MessageSerializer.Serialize(obj);
+            Message msg = this.MessageFactory.CreateMessageRequest(identifier, this.ProcessName, target, payload);
+            await this.SendAsync(msg);
+
+            return await this.HandleTransmissionResultAsync<TResult>(msg.ID);
+        }
+
         internal async Task TransmitObjectAsync<T>(string identifier, string target, T obj) where T : class
         {
             string payload = MessageSerializer.Serialize(obj);
             Message msg = this.MessageFactory.CreateMessageRequest(identifier, this.ProcessName, target, payload);
             await this.SendAsync(msg);
+        }
+
+        internal async Task<TResult> TransmitValueAsync<T, TResult>(string identifier, string target, T value) where T : struct
+        {
+            string data = value.ToString();
+            Message msg = this.MessageFactory.CreateMessageRequest(identifier, this.ProcessName, target, data);
+            await this.SendAsync(msg);
+
+            return await this.HandleTransmissionResultAsync<TResult>(msg.ID);
         }
 
         internal async Task TransmitValueAsync<T>(string identifier, string target, T value) where T : struct
