@@ -15,7 +15,6 @@ namespace Octovisor.Client
     /// </summary>
     public abstract class BaseClient
     {
-        private int CurrentMessageID ;
         private TcpClient Client;
         private Thread ReceivingThread;
         private NetworkStream Stream;
@@ -46,7 +45,8 @@ namespace Octovisor.Client
 
         internal event Action<ProcessUpdateData, bool> ProcessUpdate;
         internal event Action<List<RemoteProcessData>> ProcessesInfoReceived;
-        internal event Func<Message, string> MessageReceived;
+        internal event Func<Message, string> MessageRequestReceived;
+        internal event Action<Message> MessageResponseReceived;
        
         /// <summary>
         /// Gets whether or not this instance is connected 
@@ -87,7 +87,6 @@ namespace Octovisor.Client
             if (this.IsConnected)
                 throw new AlreadyConnectedException();
 
-            this.CurrentMessageID = 0;
             this.Client = new TcpClient();
             await this.Client.ConnectAsync(this.Config.Address, this.Config.Port);
             this.IsConnected = true;
@@ -146,13 +145,13 @@ namespace Octovisor.Client
             this.RequestProcessesInfoTCS?.SetResult(processesData);
         }
 
-        private async Task HandleMessageResponseAsync(Message msg)
+        private async Task SendResponseMessageAsync(Message msg)
         {
             string data;
             MessageStatus status;
             try
             {
-                data = this.MessageReceived?.Invoke(msg);
+                data = this.MessageRequestReceived?.Invoke(msg);
                 status = MessageStatus.Unknown;
             }
             catch (Exception ex)
@@ -164,6 +163,9 @@ namespace Octovisor.Client
             Message responseMsg = this.MessageFactory.CreateMessageResponse(msg, data, status);
             await this.SendAsync(responseMsg);
         }
+
+        private void HandleResponseMessage(Message msg)
+            => this.MessageResponseReceived?.Invoke(msg);
 
         private async Task HandleReceivedMessageAsync(Message msg)
         {
@@ -179,10 +181,19 @@ namespace Octovisor.Client
                     this.HandleRequestProcessesMessage(msg);
                     break;
                 default:
-                    if (msg.Type == MessageType.Request)
-                        await this.HandleMessageResponseAsync(msg);
-                    else
-                        this.LogEvent(msg.OriginName);
+                    switch (msg.Type)
+                    {
+                        case MessageType.Request:
+                            await this.SendResponseMessageAsync(msg);
+                            break;
+                        case MessageType.Response:
+                            this.HandleResponseMessage(msg);
+                            break;
+                        case MessageType.Unknown:
+                        default:
+                            this.LogEvent($"Received unknown message type\n{msg.Data}");
+                            break;
+                    }
                     break;
             }
         }
@@ -219,7 +230,7 @@ namespace Octovisor.Client
 
             this.RegisterTCS = new TaskCompletionSource<bool>();
             CancellationTokenSource cts = new CancellationTokenSource(5000);
-            cts.Token.Register(() => this.RegisterTCS?.SetCanceled(), false);
+            cts.Token.Register(() => this.RegisterTCS?.SetException(new TimeOutException()), false);
             bool accepted = await this.RegisterTCS.Task;
             if (accepted)
                 this.IsRegistered = true;
@@ -235,7 +246,7 @@ namespace Octovisor.Client
 
             this.UnregisterTCS = new TaskCompletionSource<bool>();
             CancellationTokenSource cts = new CancellationTokenSource(5000);
-            cts.Token.Register(() => this.UnregisterTCS?.SetCanceled(), false);
+            cts.Token.Register(() => this.UnregisterTCS?.SetException(new TimeOutException()), false);
             bool accepted = await this.UnregisterTCS.Task;
             if (accepted)
                 this.IsRegistered = false;
@@ -250,7 +261,7 @@ namespace Octovisor.Client
 
             this.RequestProcessesInfoTCS = new TaskCompletionSource<List<RemoteProcessData>>();
             CancellationTokenSource cts = new CancellationTokenSource(5000);
-            cts.Token.Register(() => this.RequestProcessesInfoTCS?.SetCanceled(), false);
+            cts.Token.Register(() => this.RequestProcessesInfoTCS?.SetException(new TimeOutException()), false);
             List<RemoteProcessData> data = await this.RequestProcessesInfoTCS.Task;
             this.RequestProcessesInfoTCS = null;
             this.ProcessesInfoReceived?.Invoke(data);
@@ -261,8 +272,6 @@ namespace Octovisor.Client
             if (!this.IsConnected)
                 throw new UnconnectedException();
 
-            msg.ID = this.CurrentMessageID;
-            Interlocked.Increment(ref this.CurrentMessageID);
             string data = msg.Serialize() + this.Config.MessageFinalizer;
             byte[] bytedata = Encoding.UTF8.GetBytes(data);
 
