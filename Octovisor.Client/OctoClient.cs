@@ -32,6 +32,7 @@ namespace Octovisor.Client
         private readonly Dictionary<string, RemoteProcess> Processes;
         private readonly Dictionary<string, Func<Message, string>> TransmissionHandlers;
         private readonly Dictionary<int, TaskCompletionSource<string>> TransmissionTCSs;
+        private readonly int Timeout;
 
         /// <summary>
         /// Instanciates a new OctoClient
@@ -43,6 +44,7 @@ namespace Octovisor.Client
             this.Processes = new Dictionary<string, RemoteProcess>();
             this.TransmissionHandlers = new Dictionary<string, Func<Message, string>>();
             this.TransmissionTCSs = new Dictionary<int, TaskCompletionSource<string>>();
+            this.Timeout = config.Timeout;
 
             this.ProcessUpdate += this.OnProcessUpdate;
             this.ProcessesInfoReceived += this.OnProcessesInfoReceived;
@@ -53,7 +55,11 @@ namespace Octovisor.Client
         private void OnMessageResponseReceived(Message msg)
         {
             if (this.TransmissionTCSs.ContainsKey(msg.ID))
-                this.TransmissionTCSs[msg.ID].SetResult(msg.Data);
+            {
+                TaskCompletionSource<string> tcs = this.TransmissionTCSs[msg.ID];
+                if (!tcs.Task.IsCompleted)
+                    tcs.SetResult(msg.Data);
+            }
         }
 
         private string OnMessageRequestReceived(Message msg)
@@ -159,7 +165,7 @@ namespace Octovisor.Client
         internal async Task<T> HandleTransmissionResultAsync<T>(int id)
         {
             TaskCompletionSource<string> tcs = new TaskCompletionSource<string>();
-            CancellationTokenSource cts = new CancellationTokenSource(5000);
+            CancellationTokenSource cts = new CancellationTokenSource(this.Timeout);
             cts.Token.Register(() =>
             {
                 if (!tcs.Task.IsCompleted)

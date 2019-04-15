@@ -15,6 +15,7 @@
             this.Address = string.Empty;
             this.MessageFinalizer = "\0";
             this.BufferSize = 255;
+            this.Timeout = 5000;
         }
 
         /// <summary>
@@ -56,6 +57,11 @@
         public int BufferSize { get; set; }
 
         /// <summary>
+        /// The maximum time to wait to get responses
+        /// </summary>
+        public int Timeout { get; set; }
+
+        /// <summary>
         /// Determines if this configuration instance is valid
         /// </summary>
         public bool IsValid()
@@ -65,7 +71,7 @@
                 if (string.IsNullOrWhiteSpace(prop))
                     return false;
 
-            if (this.Port < 1)
+            if (this.Port < 1 || this.BufferSize <= 1 || this.Timeout <= 1)
                 return false;
 
             return true;
