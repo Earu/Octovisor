@@ -1,8 +1,9 @@
-﻿using Newtonsoft.Json;
-using Octovisor.Messages;
+﻿using Octovisor.Messages;
 using Octovisor.Server.Properties;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -17,8 +18,8 @@ namespace Octovisor.Server
         private Task InternalTask;
 
         private readonly string MessageFinalizer;
-        private readonly Dictionary<EndPoint, ClientState> States;
-        private readonly Dictionary<string, EndPoint> EndpointLookup;
+        private readonly ConcurrentDictionary<EndPoint, ClientState> States;
+        private readonly ConcurrentDictionary<string, EndPoint> EndpointLookup;
         private readonly Logger Logger;
         private readonly MessageFactory MessageFactory;
 
@@ -31,8 +32,9 @@ namespace Octovisor.Server
             this.MessageFinalizer = Config.Instance.MessageFinalizer;
             this.Logger = new Logger();
             this.MessageFactory = new MessageFactory();
-            this.States = new Dictionary<EndPoint, ClientState>();
-            this.EndpointLookup = new Dictionary<string, EndPoint>();
+
+            this.States = new ConcurrentDictionary<EndPoint, ClientState>();
+            this.EndpointLookup = new ConcurrentDictionary<string, EndPoint>();
         }
 
         private void DisplayAsciiArt()
@@ -114,7 +116,7 @@ namespace Octovisor.Server
             }
             catch (Exception e)
             {
-                this.OnException(e);
+                await this.OnExceptionAsync(e);
             }
 
             if (client == null) return;
@@ -125,26 +127,35 @@ namespace Octovisor.Server
             #pragma warning restore CS4014
         }
 
-        private void HandleException(Exception e, Action onConnectionReset)
+        private bool ShouldHandleException(Exception ex)
         {
-            SocketException se = null;
-            if (e is SocketException)
-                se = (SocketException)e;
-            else if (e.InnerException is SocketException)
-                se = (SocketException)e.InnerException;
+            if (ex is SocketException sEx && sEx.SocketErrorCode == SocketError.ConnectionReset)
+                return true;
+            else if (ex is IOException)
+                return true;
 
-            //10054
-            if (se != null && se.SocketErrorCode == SocketError.ConnectionReset)
-            {
-                onConnectionReset();
-            }
-            else
-                this.Logger.Error(e.ToString());
+            if (ex.InnerException == null) return false;
+
+            ex = ex.InnerException;
+            if (ex is SocketException sExInner && sExInner.SocketErrorCode == SocketError.ConnectionReset)
+                return true;
+            else if (ex is IOException)
+                return true;
+
+            return false;
         }
 
-        private void OnClientStateException(ClientState state, Exception e)
+        private async Task HandleExceptionAsync(Exception ex, Func<Task> onConnectionReset)
         {
-            this.HandleException(e, async () =>
+            if (this.ShouldHandleException(ex))
+                await onConnectionReset();
+            else
+                this.Logger.Error(ex.ToString());
+        }
+
+        private async Task OnClientStateExceptionAsync(ClientState state, Exception e)
+        {
+            await this.HandleExceptionAsync(e, async () =>
             {
                 this.Logger.Nice("Process", ConsoleColor.Red, $"{state.Name} was forcibly closed");
                 this.EndProcess(state.RemoteEndPoint);
@@ -154,11 +165,12 @@ namespace Octovisor.Server
             });
         }
 
-        private void OnException(Exception e)
+        private async Task OnExceptionAsync(Exception e)
         {
-            this.HandleException(e, () =>
+            await this.HandleExceptionAsync(e, () =>
             {
                 this.Logger.Nice("Process", ConsoleColor.Red, "A remote process was forcibly closed when connecting");
+                return Task.CompletedTask;
             });
         }
 
@@ -176,7 +188,7 @@ namespace Octovisor.Server
         }
 
         private async Task HandleReceivedMessageAsync(ClientState state, Message msg)
-        {
+        { 
             switch (msg.Identifier)
             {
                 case MessageConstants.REGISTER_IDENTIFIER:
@@ -221,7 +233,7 @@ namespace Octovisor.Server
             }
             catch (Exception e)
             {
-                this.OnClientStateException(state, e);
+                await this.OnClientStateExceptionAsync(state, e);
             }
         }
 
@@ -236,7 +248,7 @@ namespace Octovisor.Server
             }
             catch (Exception e)
             {
-                this.OnClientStateException(state, e);
+                await this.OnClientStateExceptionAsync(state, e);
             }
         }
 
@@ -266,8 +278,8 @@ namespace Octovisor.Server
 
                 endpoint = state.RemoteEndPoint;
                 state.Name = name;
-                this.States.Add(endpoint, state);
-                this.EndpointLookup.Add(name, endpoint);
+                this.States.AddOrUpdate(endpoint, state, (_, __) => state);
+                this.EndpointLookup.AddOrUpdate(name, endpoint, (_, __) => endpoint);
                 state.Register();
                 this.Logger.Nice("Process", ConsoleColor.Magenta, $"Registering new remote process | {name} @ {endpoint}");
                 data = new ProcessUpdateData(true, name);
@@ -301,8 +313,8 @@ namespace Octovisor.Server
                 EndPoint endpoint = this.EndpointLookup[name];
                 ClientState state = this.States[endpoint];
                 state.Dispose();
-                this.States.Remove(endpoint);
-                this.EndpointLookup.Remove(name);
+                this.States.Remove(endpoint, out ClientState _);
+                this.EndpointLookup.Remove(name, out EndPoint _);
 
                 this.Logger.Nice("Process", ConsoleColor.Magenta, $"Ending remote process | {name} @ {endpoint}");
             }
@@ -315,8 +327,8 @@ namespace Octovisor.Server
             {
                 ClientState state = this.States[endpoint];
                 state.Dispose();
-                this.States.Remove(endpoint);
-                this.EndpointLookup.Remove(state.Name);
+                this.States.Remove(endpoint, out ClientState _);
+                this.EndpointLookup.Remove(state.Name, out EndPoint _);
 
                 this.Logger.Nice("Process", ConsoleColor.Magenta, $"Ending remote process | {state.Name} @ {endpoint}");
             }

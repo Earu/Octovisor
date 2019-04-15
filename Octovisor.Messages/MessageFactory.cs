@@ -1,4 +1,6 @@
-﻿namespace Octovisor.Messages
+﻿using System.Threading;
+
+namespace Octovisor.Messages
 {
     public class MessageFactory
     {
@@ -61,7 +63,7 @@
         {
             Message msg = new Message
             {
-                ID = this.CurrentMessageID++,
+                ID = this.CurrentMessageID,
                 OriginName = originName,
                 TargetName = targetName,
                 Identifier = identifier,
@@ -70,6 +72,8 @@
                 Status = status,
             };
 
+            Interlocked.Increment(ref this.CurrentMessageID);
+
             return msg;
         }
 
@@ -77,7 +81,7 @@
         {
             Message msg = new Message
             {
-                ID = this.CurrentMessageID++,
+                ID = this.CurrentMessageID,
                 OriginName = originName,
                 TargetName = targetName,
                 Identifier = identifier,
@@ -85,6 +89,8 @@
                 Type = MessageType.Request,
                 Status = MessageStatus.Unknown,
             };
+
+            Interlocked.Increment(ref this.CurrentMessageID);
 
             return msg;
         }
