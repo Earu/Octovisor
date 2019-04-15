@@ -38,12 +38,7 @@ namespace Octovisor.Server
         }
 
         internal void LogTo(string fileName, string msg)
-        {
-            lock(Locker)
-            {
-                File.AppendAllText($"{Path}/{fileName}", $"{DateTime.Now} - {msg}\n");
-            }
-        }
+            => File.AppendAllText($"{Path}/{fileName}", $"{DateTime.Now} - {msg}\n");
 
         public void Normal(string msg)
         {
@@ -55,57 +50,75 @@ namespace Octovisor.Server
 
         public void Nice(string head, ConsoleColor col, string content)
         {
-            this.Head();
-            Console.ForegroundColor = ConsoleColor.White;
-            Console.Write("[");
-            Console.ForegroundColor = col;
-            Console.Write(head);
-            Console.ForegroundColor = ConsoleColor.White;
-            Console.Write("] >> ");
-            Console.WriteLine(content);
-            this.LogTo(this._MainLogFile, $"[{head.ToUpper()}] >> {content}");
+            lock (Locker)
+            {
+                this.Head();
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.Write("[");
+                Console.ForegroundColor = col;
+                Console.Write(head);
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.Write("] >> ");
+                Console.WriteLine(content);
+                this.LogTo(this._MainLogFile, $"[{head.ToUpper()}] >> {content}");
+            }
         }
 
         public void Warning(string msg)
         {
-            this.Head();
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine(msg);
-            this.LogTo(this._MainLogFile, $"[WARN] >> {msg}");
+            lock (Locker)
+            {
+                this.Head();
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine(msg);
+                this.LogTo(this._MainLogFile, $"[WARN] >> {msg}");
+            }
         }
 
         public void Danger(string msg)
         {
-            this.Head();
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine(msg);
-            this.LogTo(this._MainLogFile, $"[DANGER] >> {msg}");
+            lock (Locker)
+            {
+                this.Head();
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine(msg);
+                this.LogTo(this._MainLogFile, $"[DANGER] >> {msg}");
+            }
         }
 
         public void Danger(Exception ex)
         {
-            this.Head();
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine(ex);
-            this.LogTo(this._MainLogFile, $"[DANGER] >> {ex}");
+            lock (Locker)
+            {
+                this.Head();
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine(ex);
+                this.LogTo(this._MainLogFile, $"[DANGER] >> {ex}");
+            }
         }
 
         public void Error(string msg)
         {
-            this.Head();
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine("/!\\ ERROR /!\\");
-            Console.WriteLine(msg);
-            Console.ReadLine();
-            this.LogTo(this._MainLogFile, $"[ERROR] >> {msg}");
+            lock (Locker)
+            {
+                this.Head();
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("/!\\ ERROR /!\\");
+                Console.WriteLine(msg);
+                Console.ReadLine();
+                this.LogTo(this._MainLogFile, $"[ERROR] >> {msg}");
+            }
         }
 
         public void Good(string msg)
         {
-            this.Head();
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine(msg);
-            this.LogTo(this._MainLogFile, $"[GOOD] >> {msg}");
+            lock (Locker)
+            {
+                this.Head();
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine(msg);
+                this.LogTo(this._MainLogFile, $"[GOOD] >> {msg}");
+            }
         }
     }
 }

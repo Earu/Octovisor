@@ -1,9 +1,18 @@
 ﻿using Octovisor.Client;
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Octovisor.Tests.Client2
 {
+    class TestClass
+    {
+        public string Lol;
+        public int What;
+        public long Sure;
+        public List<(int, byte[])> Ok;
+    }
+
     class Program
     {
         static void Main() 
@@ -15,14 +24,18 @@ namespace Octovisor.Tests.Client2
                 Token = "you're cool",
                 Address = "127.0.0.1",
                 Port = 6558,
-                ProcessName = "Meta2",
+                ProcessName = "Process2",
             };
 
             OctoClient client = new OctoClient(config);
-            client.Log += Console.WriteLine;
-
             await client.ConnectAsync();
-            client.OnTransmission<string, string>("meme", (proc, data) => "no u");
+            client.OnTransmission<TestClass, string>("meme", (proc, data) =>
+            {
+                Console.WriteLine(proc.Name);
+                Console.WriteLine(data);
+
+                return "hello world";
+            });
 
             await Task.Delay(-1);
         }
