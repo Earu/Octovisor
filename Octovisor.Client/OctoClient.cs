@@ -28,7 +28,6 @@ namespace Octovisor.Client
         /// </summary>
         public event Action<List<RemoteProcess>> ProcessesFetched;
 
-        private readonly string ProcessName;
         private readonly Dictionary<string, RemoteProcess> Processes;
         private readonly Dictionary<string, Func<Message, string>> TransmissionHandlers;
         private readonly Dictionary<int, TaskCompletionSource<string>> TransmissionTCSs;
@@ -51,6 +50,17 @@ namespace Octovisor.Client
             this.MessageRequestReceived += this.OnMessageRequestReceived;
             this.MessageResponseReceived += this.OnMessageResponseReceived;
         }
+
+
+        /// <summary>
+        /// Gets the list of all currently available processes
+        /// </summary>
+        public List<RemoteProcess> AvailableProcesses { get => this.Processes.Select(x => x.Value).ToList(); }
+
+        /// <summary>
+        /// The name under which the client is registered on the Server
+        /// </summary>
+        public string ProcessName { get; private set; }
 
         private void OnMessageResponseReceived(Message msg)
         {
@@ -136,11 +146,6 @@ namespace Octovisor.Client
                 return null;
             });
         }
-
-        /// <summary>
-        /// Gets the list of all currently available processes
-        /// </summary>
-        public List<RemoteProcess> AvailableProcesses { get => this.Processes.Select(x => x.Value).ToList(); }
 
         /// <summary>
         /// Gets whether the specified name corresponds to a valid remote process or not
