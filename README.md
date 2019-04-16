@@ -4,6 +4,7 @@ Octovisor is a message service that allows you to **share objects and values eas
 ### Usage
 Build the **Octovisor.Server project along with Octovisor.Messages** for your system, and make configuration file called config.yaml
 in the same directory as Octovisor.Server.dll, make sure it is formatted like [this](https://github.com/Earu/Octovisor/blob/master/Octovisor.Server/config.yaml.example). 
+**NOTE: I DO NOT RECOMMEND USING OCTOVISOR IN PERFORMANCE CRITICAL AREAS, EXPECT LATENCIES OF ~70MS TO TRANSFER AN OBJECT OVER A NETWORK**
 
 Once you have the server running you want to use the octovisor client API (**Octovisor.Client**), add it as reference in your project and follow the example below. Do note that your *Config* object must have the same **token and port** as the config file used for the server.
 
