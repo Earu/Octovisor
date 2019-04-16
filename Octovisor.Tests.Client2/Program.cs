@@ -29,7 +29,7 @@ namespace Octovisor.Tests.Client2
 
             OctoClient client = new OctoClient(config);
             await client.ConnectAsync();
-            client.OnTransmission<TestClass, string>("meme", (proc, data) =>
+            client.OnTransmission<string, string>("meme", (proc, data) =>
             {
                 Console.WriteLine(proc.Name);
                 Console.WriteLine(data);
