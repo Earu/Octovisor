@@ -7,7 +7,7 @@ in the same directory as Octovisor.Server.dll, make sure it is formatted like [t
 
 Once you have the server running you want to use the octovisor client API (**Octovisor.Client**), add it as reference in your project and follow the example below. Do note that your *Config* object must have the same **token and port** as the config file used for the server.
 
-*NOTE: I DO NOT RECOMMEND USING OCTOVISOR IN PERFORMANCE CRITICAL AREAS, EXPECT LATENCIES OF ~70MS TO TRANSMIT AN OBJECT OVER A NETWORK*
+*NOTE: I DO NOT RECOMMEND USING OCTOVISOR IN PERFORMANCE CRITICAL AREAS, EXPECT LATENCIES OF ~40MS TO TRANSMIT AN OBJECT/VALUE OVER A NETWORK, MULTIPLY BY TWO IF YOU ARE WAITING FOR AN OBJECT/VALUE IN RESPONSE.*
 
 ### Example
 Here we have a process that calls itself "Process2", and that replies with the string "no u" everytime it receives a transmission with the identifier "meme".
