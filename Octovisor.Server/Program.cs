@@ -11,7 +11,7 @@ namespace Octovisor.Server
         {
             string configPath = args.Length > 0 ? args[0] : "config.yaml";
             Config.Initialize(configPath);
-            Server server = new Server();
+            OctoServer server = new OctoServer();
             await server.RunAsync();
         }
     }
