@@ -52,7 +52,7 @@ namespace Octovisor.Server.Servers
                 listener.Start(Config.Instance.MaxProcesses);
 
                 this.Listener = listener;
-                this.Logger.Nice("Server", ConsoleColor.Magenta, $"Running on {endpoint}...");
+                this.Logger.Nice("TCP Server", ConsoleColor.Magenta, $"Running on {endpoint}...");
 
                 while (this.ShouldRun)
                     await this.ListenConnectionAsync();
