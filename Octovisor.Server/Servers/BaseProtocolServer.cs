@@ -14,10 +14,8 @@ namespace Octovisor.Server.Servers
             this.Dispatcher = dispatcher;
         }
 
-        internal virtual Task RunAsync()
-            => Task.CompletedTask;
+        internal abstract Task RunAsync();
 
-        internal virtual Task StopAsync()
-            => Task.CompletedTask;
+        internal abstract Task StopAsync();
     }
 }
