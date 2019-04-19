@@ -8,10 +8,10 @@ namespace Octovisor.Messages
         // Number of bytes possible before clearing up data (1GB)
         private const int Treshold = 1000000000; 
 
-        private readonly string MessageFinalizer;
+        private readonly char MessageFinalizer;
         private readonly StringBuilder Builder;
 
-        public MessageReader(string messageFinalizer)
+        public MessageReader(char messageFinalizer)
         {
             this.MessageFinalizer = messageFinalizer;
             this.Builder = new StringBuilder(Treshold);
@@ -25,15 +25,14 @@ namespace Octovisor.Messages
         {
             string current;
             List<Message> msgs = new List<Message>();
-            int finalizerLen = this.MessageFinalizer.Length;
             foreach (char c in content)
             {
                 this.Builder.Append(c);
 
                 current = this.Value;
-                if (current.Length >= finalizerLen && current.EndsWith(this.MessageFinalizer))
+                if (current.Length >= 1 && current[current.Length - 1] == this.MessageFinalizer)
                 {
-                    string smsg = current.Substring(0, current.Length - finalizerLen);
+                    string smsg = current.Substring(0, current.Length - 1);
                     if (!string.IsNullOrWhiteSpace(smsg))
                         msgs.Add(Message.Deserialize(smsg));
 
