@@ -13,7 +13,7 @@
             this._ProcessName = string.Empty;
             this.Port = -1;
             this.Address = string.Empty;
-            this.MessageFinalizer = "\0";
+            this.MessageFinalizer = '\0';
             this.BufferSize = 255;
             this.Timeout = 5000;
         }
@@ -49,7 +49,7 @@
         /// The string that will be used to segment Octovisor messages
         /// This needs to be the same as the server, it is strongly advised to keep it set to "\0"
         /// </summary>
-        public string MessageFinalizer { get; set; }
+        public char MessageFinalizer { get; private set; }
 
         /// <summary>
         /// The size of the buffer used to read from socket
@@ -71,7 +71,7 @@
                 if (string.IsNullOrWhiteSpace(prop))
                     return false;
 
-            if (this.Port < 1 || this.BufferSize <= 1 || this.Timeout <= 1)
+            if (this.Port < 1 || this.BufferSize < 1 || this.Timeout < 1)
                 return false;
 
             return true;

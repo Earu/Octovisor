@@ -7,23 +7,20 @@ namespace Octovisor.Server
 {
     public class Config
     {
+        [YamlIgnore]
+        public const char MessageFinalizer = '\0';
+
         public string Token { get; set; }
-        public int Port { get; set; }
+        public int TCPSocketPort { get; set; }
+        public int WebSocketPort { get; set; }
         public int MaxProcesses { get; set; }
-        public string MessageFinalizer { get; set; }
 
         private bool IsValid()
         {
             if (string.IsNullOrWhiteSpace(this.Token))
                 return false;
 
-            if (this.Port < 1)
-                return false;
-
-            if (this.MaxProcesses < 1)
-                return false;
-
-            if (string.IsNullOrWhiteSpace(this.MessageFinalizer))
+            if (this.TCPSocketPort < 1 || this.WebSocketPort < 1 || this.MaxProcesses < 1)
                 return false;
 
             return true;

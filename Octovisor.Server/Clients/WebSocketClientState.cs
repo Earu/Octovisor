@@ -1,9 +1,14 @@
-﻿namespace Octovisor.Server.Clients
+﻿using System.Net.Sockets;
+
+namespace Octovisor.Server.Clients
 {
-    internal class WebSocketClientState : BaseClientState
+    internal class WebSocketClientState : TCPSocketClientState
     {
-        internal WebSocketClientState() : base()
+        internal WebSocketClientState(TcpClient client) : base(client)
         {
+            this.HasHandshaked = false;
         }
+
+        internal bool HasHandshaked { get; set; }
     }
 }

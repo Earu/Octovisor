@@ -18,7 +18,7 @@ namespace Octovisor.Server.Clients
         {
             this.Client = client;
             this.Buffer = new byte[BufferSize];
-            this.Reader = new MessageReader(Config.Instance.MessageFinalizer);
+            this.Reader = new MessageReader(Config.MessageFinalizer);
             this.Stream = this.Client.GetStream();
         }
 
