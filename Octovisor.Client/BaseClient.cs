@@ -16,7 +16,7 @@ namespace Octovisor.Client
     public abstract class BaseClient
     {
         private TcpClient Client;
-        private Thread ReceivingThread;
+        private Task ReceivingTask;
         private NetworkStream Stream;
 
         private readonly byte[] Buffer;
@@ -93,8 +93,7 @@ namespace Octovisor.Client
             this.Stream = this.Client.GetStream();
             if (this.Connected != null)
                 await this.Connected.Invoke();
-            this.ReceivingThread = new Thread(async () => await this.ListenAsync());
-            this.ReceivingThread.Start();
+            this.ReceivingTask = this.ListenAsync();
 
             await this.RegisterAsync();
             if (this.Registered != null)
@@ -115,7 +114,9 @@ namespace Octovisor.Client
             this.Stream.Dispose();
             this.Client.Dispose();
             this.IsConnected = false;
-            this.ReceivingThread = null;
+
+            await this.ReceivingTask;
+            this.ReceivingTask = null;
 
             if (this.Disconnected != null)
                 await this.Disconnected.Invoke();
