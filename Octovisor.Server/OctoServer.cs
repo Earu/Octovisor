@@ -2,7 +2,6 @@
 using Octovisor.Server.Servers;
 using System;
 using System.Collections.Generic;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace Octovisor.Server
@@ -10,7 +9,6 @@ namespace Octovisor.Server
     internal class OctoServer
     {
         private readonly List<BaseProtocolServer> ProtocolServers;
-        private readonly List<Thread> ServerThreads;
         internal OctoServer()
         {
             Console.Clear();
@@ -19,7 +17,6 @@ namespace Octovisor.Server
             Logger logger = new Logger();
             Dispatcher dispatcher = new Dispatcher(logger);
 
-            this.ServerThreads = new List<Thread>();
             this.ProtocolServers = new List<BaseProtocolServer>
             {
                 new TCPSocketServer(logger, dispatcher),
@@ -53,13 +50,12 @@ namespace Octovisor.Server
         internal async Task RunAsync()
         {
             this.DisplayAsciiArt();
+
+            List<Task> tasks = new List<Task>();
             foreach (BaseProtocolServer server in this.ProtocolServers)
-                this.ServerThreads.Add(new Thread(async () => await server.RunAsync()));
+                tasks.Add(server.RunAsync());
 
-            foreach (Thread thread in this.ServerThreads)
-                thread.Start();
-
-            await Task.Delay(-1);
+            await Task.WhenAll(tasks);
         }
 
         internal async Task StopAsync()
