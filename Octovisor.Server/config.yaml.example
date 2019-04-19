@@ -1,5 +1,5 @@
 ﻿---
 Token: "cool"
-Port: 4559
+TCPSocketPort: 4559
+WebSocketport: 4560
 MaxProcesses: 255
-MessageFinalizer: "\0"

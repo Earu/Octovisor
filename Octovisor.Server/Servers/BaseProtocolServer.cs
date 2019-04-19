@@ -5,12 +5,12 @@ namespace Octovisor.Server.Servers
     internal abstract class BaseProtocolServer
     {
         protected readonly Logger Logger;
-        protected readonly string MessageFinalizer;
+        protected readonly char MessageFinalizer;
         protected readonly Dispatcher Dispatcher;
         internal BaseProtocolServer(Logger logger, Dispatcher dispatcher)
         {
             this.Logger = logger;
-            this.MessageFinalizer = Config.Instance.MessageFinalizer;
+            this.MessageFinalizer = Config.MessageFinalizer;
             this.Dispatcher = dispatcher;
         }
 

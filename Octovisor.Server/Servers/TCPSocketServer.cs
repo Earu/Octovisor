@@ -1,5 +1,6 @@
 ﻿using Octovisor.Messages;
 using Octovisor.Server.Clients;
+using Octovisor.Server.Utilities;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -16,9 +17,12 @@ namespace Octovisor.Server.Servers
         private bool ShouldRun;
         private TcpListener Listener;
 
+        private readonly SocketExceptionHandler ExceptionHandler;
+
         public TCPSocketServer(Logger logger, Dispatcher dispatcher) : base(logger, dispatcher)
         {
             this.ShouldRun = false;
+            this.ExceptionHandler = new SocketExceptionHandler(logger, dispatcher);
         }
 
         internal override async Task RunAsync()
@@ -44,7 +48,7 @@ namespace Octovisor.Server.Servers
         {
             try
             {
-                IPEndPoint endpoint = new IPEndPoint(IPAddress.IPv6Any, Config.Instance.Port);
+                IPEndPoint endpoint = new IPEndPoint(IPAddress.IPv6Any, Config.Instance.TCPSocketPort);
                 TcpListener listener = new TcpListener(endpoint);
                 // To accept IPv4 and IPv6
                 listener.Server.DualMode = true;
@@ -52,7 +56,7 @@ namespace Octovisor.Server.Servers
                 listener.Start(Config.Instance.MaxProcesses);
 
                 this.Listener = listener;
-                this.Logger.Nice("TCP Server", ConsoleColor.Magenta, $"Running on {endpoint}...");
+                this.Logger.Nice("TCP Socket Server", ConsoleColor.Magenta, $"Running on {endpoint}...");
 
                 while (this.ShouldRun)
                     await this.ListenConnectionAsync();
@@ -72,7 +76,7 @@ namespace Octovisor.Server.Servers
             }
             catch (Exception e)
             {
-                await this.OnExceptionAsync(e);
+                await this.ExceptionHandler.OnExceptionAsync(e);
             }
 
             if (client == null) return;
@@ -81,53 +85,6 @@ namespace Octovisor.Server.Servers
 #pragma warning disable CS4014
             this.ListenAsync(state);
 #pragma warning restore CS4014
-        }
-
-        private bool ShouldHandleException(Exception ex)
-        {
-            if (ex is SocketException sEx && sEx.SocketErrorCode == SocketError.ConnectionReset)
-                return true;
-            else if (ex is IOException)
-                return true;
-
-            if (ex.InnerException == null) return false;
-
-            ex = ex.InnerException;
-            if (ex is SocketException sExInner && sExInner.SocketErrorCode == SocketError.ConnectionReset)
-                return true;
-            else if (ex is IOException)
-                return true;
-
-            return false;
-        }
-
-        private async Task HandleExceptionAsync(Exception ex, Func<Task> onConnectionReset)
-        {
-            if (this.ShouldHandleException(ex))
-                await onConnectionReset();
-            else
-                this.Logger.Error(ex.ToString());
-        }
-
-        private async Task OnClientStateExceptionAsync(TCPSocketClientState state, Exception e)
-        {
-            await this.HandleExceptionAsync(e, (async () =>
-            {
-                this.Logger.Nice("Process", ConsoleColor.Red, $"Remote process \'{state.Name}\' was forcibly closed");
-                this.Dispatcher.TerminateProcess(state.Name);
-
-                ProcessUpdateData enddata = new ProcessUpdateData(true, state.Name);
-                await this.Dispatcher.BroadcastMessageAsync(MessageConstants.END_IDENTIFIER, enddata.Serialize());
-            }));
-        }
-
-        private async Task OnExceptionAsync(Exception e)
-        {
-            await this.HandleExceptionAsync(e, () =>
-            {
-                this.Logger.Nice("Process", ConsoleColor.Red, "A remote process was forcibly closed when connecting");
-                return Task.CompletedTask;
-            });
         }
 
         private async Task ListenAsync(TCPSocketClientState state)
@@ -156,7 +113,7 @@ namespace Octovisor.Server.Servers
             }
             catch (Exception e)
             {
-                await this.OnClientStateExceptionAsync(state, e);
+                await this.ExceptionHandler.OnClientStateExceptionAsync(state, e);
             }
         }
     }

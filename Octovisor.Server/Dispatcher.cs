@@ -13,7 +13,7 @@ namespace Octovisor.Server
     {
         private readonly Logger Logger;
         private readonly MessageFactory Factory;
-        private readonly string MessageFinalizer;
+        private readonly char MessageFinalizer;
         private readonly string Token;
         private readonly ConcurrentDictionary<string, BaseClientState> States;
 
@@ -21,7 +21,7 @@ namespace Octovisor.Server
         {
             this.Logger = logger;
             this.Factory = new MessageFactory();
-            this.MessageFinalizer = Config.Instance.MessageFinalizer;
+            this.MessageFinalizer = Config.MessageFinalizer;
             this.Token = Config.Instance.Token;
             this.States = new ConcurrentDictionary<string, BaseClientState>();
         }
@@ -145,10 +145,9 @@ namespace Octovisor.Server
                 await stream.WriteAsync(bytes);
                 await stream.FlushAsync();
             }
-            catch (Exception e)
+            catch
             {
                 this.Logger.Nice("Process", ConsoleColor.Red, $"Remote process \'{state.Name}\' stream broke, terminating");
-                this.Logger.Warning(e.ToString());
                 this.TerminateProcess(state.Name);
 
                 ProcessUpdateData enddata = new ProcessUpdateData(true, state.Name);

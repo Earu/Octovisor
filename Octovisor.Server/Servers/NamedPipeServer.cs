@@ -9,7 +9,11 @@ namespace Octovisor.Server.Servers
         }
 
         internal override Task RunAsync()
-            => Task.CompletedTask;
+        {
+            this.Logger.Nice("Named Pipe Server", System.ConsoleColor.Magenta, "Successfully started");
+
+            return Task.CompletedTask;
+        }
 
         internal override Task StopAsync()
             => Task.CompletedTask;
