@@ -1,5 +1,5 @@
 ﻿using Octovisor.Server.Properties;
-using Octovisor.Server.Servers;
+using Octovisor.Server.ProtocolServers;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -19,9 +19,9 @@ namespace Octovisor.Server
 
             this.ProtocolServers = new List<BaseProtocolServer>
             {
-                new TCPSocketServer(logger, dispatcher),
-                new WebSocketServer(logger, dispatcher),
-                new NamedPipeServer(logger, dispatcher),
+                new TCPSocketProtocolServer(logger, dispatcher),
+                new WebSocketProtocolServer(logger, dispatcher),
+                new NamedPipeProtocolServer(logger, dispatcher),
                 // more server impls here
             };
         }

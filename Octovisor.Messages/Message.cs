@@ -68,7 +68,7 @@ namespace Octovisor.Messages
             }
             catch
             {
-                return default;
+                return default(T);
             }
         }
 

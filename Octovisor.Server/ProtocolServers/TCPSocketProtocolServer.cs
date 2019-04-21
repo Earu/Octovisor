@@ -1,5 +1,5 @@
 ﻿using Octovisor.Messages;
-using Octovisor.Server.Clients;
+using Octovisor.Server.ClientStates;
 using Octovisor.Server.Utilities;
 using System;
 using System.Collections.Generic;
@@ -9,9 +9,9 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Octovisor.Server.Servers
+namespace Octovisor.Server.ProtocolServers
 {
-    internal class TCPSocketServer : BaseProtocolServer
+    internal class TCPSocketProtocolServer : BaseProtocolServer
     {
         private Task InternalTask;
         private bool ShouldRun;
@@ -19,7 +19,7 @@ namespace Octovisor.Server.Servers
 
         private readonly SocketExceptionHandler ExceptionHandler;
 
-        public TCPSocketServer(Logger logger, Dispatcher dispatcher) : base(logger, dispatcher)
+        public TCPSocketProtocolServer(Logger logger, Dispatcher dispatcher) : base(logger, dispatcher)
         {
             this.ShouldRun = false;
             this.ExceptionHandler = new SocketExceptionHandler(logger, dispatcher);
@@ -80,14 +80,14 @@ namespace Octovisor.Server.Servers
             }
 
             if (client == null) return;
-            TCPSocketClientState state = new TCPSocketClientState(client);
+            ClientStates.TCPSocketProtocolServer state = new ClientStates.TCPSocketProtocolServer(client);
 
 #pragma warning disable CS4014
             this.ListenAsync(state);
 #pragma warning restore CS4014
         }
 
-        private async Task ListenAsync(TCPSocketClientState state)
+        private async Task ListenAsync(ClientStates.TCPSocketProtocolServer state)
         {
             try
             {
