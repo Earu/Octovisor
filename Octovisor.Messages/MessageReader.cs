@@ -25,6 +25,9 @@ namespace Octovisor.Messages
         {
             string current;
             List<Message> msgs = new List<Message>();
+            if (string.IsNullOrWhiteSpace(content))
+                return msgs;
+
             foreach (char c in content)
             {
                 this.Builder.Append(c);
