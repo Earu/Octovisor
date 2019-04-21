@@ -1,10 +1,10 @@
 ﻿using System.Threading.Tasks;
 
-namespace Octovisor.Server.Servers
+namespace Octovisor.Server.ProtocolServers
 {
-    internal class NamedPipeServer : BaseProtocolServer
+    internal class NamedPipeProtocolServer : BaseProtocolServer
     {
-        public NamedPipeServer(Logger logger, Dispatcher dispatcher) : base(logger, dispatcher)
+        public NamedPipeProtocolServer(Logger logger, Dispatcher dispatcher) : base(logger, dispatcher)
         {
         }
 

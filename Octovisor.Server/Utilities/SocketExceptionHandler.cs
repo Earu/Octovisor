@@ -1,5 +1,5 @@
 ﻿using Octovisor.Messages;
-using Octovisor.Server.Clients;
+using Octovisor.Server.ClientStates;
 using System;
 using System.IO;
 using System.Net.Sockets;
@@ -44,7 +44,7 @@ namespace Octovisor.Server.Utilities
                 this.Logger.Error(ex.ToString());
         }
 
-        internal async Task OnClientStateExceptionAsync(TCPSocketClientState state, Exception e)
+        internal async Task OnClientStateExceptionAsync(TCPSocketProtocolServer state, Exception e)
         {
             await this.HandleExceptionAsync(e, async () =>
             {

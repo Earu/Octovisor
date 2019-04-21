@@ -1,6 +1,6 @@
 ﻿using System.Threading.Tasks;
 
-namespace Octovisor.Server.Servers
+namespace Octovisor.Server.ProtocolServers
 {
     internal abstract class BaseProtocolServer
     {
