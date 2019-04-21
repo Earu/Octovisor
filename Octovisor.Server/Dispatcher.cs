@@ -1,10 +1,9 @@
 ﻿using Octovisor.Messages;
-using Octovisor.Server.Clients;
+using Octovisor.Server.ClientStates;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.IO;
-using System.Text;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Octovisor.Server
@@ -39,27 +38,30 @@ namespace Octovisor.Server
             return MessageSerializer.Serialize(res);
         }
 
+        internal async Task HandleMessageAsync(BaseClientState state, Message msg)
+        {
+            switch (msg.Identifier)
+            {
+                case MessageConstants.REGISTER_IDENTIFIER:
+                    await this.RegisterProcessAsync(state, msg.OriginName, msg.Data);
+                    break;
+                case MessageConstants.END_IDENTIFIER:
+                    await this.TerminateProcessAsync(msg.OriginName, msg.Data);
+                    break;
+                case MessageConstants.REQUEST_PROCESSES_INFO_IDENTIFIER:
+                    string processesData = this.GetProcessesData(msg.OriginName);
+                    await this.AnswerMessageAsync(state, msg, processesData);
+                    break;
+                default:
+                    await this.DispatchMessageAsync(state, msg);
+                    break;
+            }
+        }
+
         internal async Task HandleMessagesAsync(BaseClientState state, IEnumerable<Message> msgs)
         {
             foreach (Message msg in msgs)
-            {
-                switch (msg.Identifier)
-                {
-                    case MessageConstants.REGISTER_IDENTIFIER:
-                        await this.RegisterProcessAsync(state, msg.OriginName, msg.Data);
-                        break;
-                    case MessageConstants.END_IDENTIFIER:
-                        await this.TerminateProcessAsync(msg.OriginName, msg.Data);
-                        break;
-                    case MessageConstants.REQUEST_PROCESSES_INFO_IDENTIFIER:
-                        string processesData = this.GetProcessesData(msg.OriginName);
-                        await this.AnswerMessageAsync(state, msg, processesData);
-                        break;
-                    default:
-                        await this.DispatchMessageAsync(state, msg);
-                        break;
-                }
-            }
+                await this.HandleMessageAsync(state, msg);
         }
 
         private async Task RegisterProcessAsync(BaseClientState state, string name, string token)
@@ -140,10 +142,7 @@ namespace Octovisor.Server
         {
             try
             {
-                Stream stream = state.Stream;
-                byte[] bytes = Encoding.UTF8.GetBytes(msg.Serialize() + this.MessageFinalizer);
-                await stream.WriteAsync(bytes);
-                await stream.FlushAsync();
+                await state.SendAsync(msg);
             }
             catch
             {

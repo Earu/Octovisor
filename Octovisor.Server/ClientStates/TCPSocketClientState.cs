@@ -2,10 +2,12 @@
 using System;
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
+using System.Threading.Tasks;
 
-namespace Octovisor.Server.Clients
+namespace Octovisor.Server.ClientStates
 {
-    internal class TCPSocketClientState : BaseClientState
+    internal class TCPSocketProtocolServer : BaseClientState
     {
         internal const int BufferSize = 256;
 
@@ -13,8 +15,9 @@ namespace Octovisor.Server.Clients
         internal byte[] Buffer { get; private set; }
         internal MessageReader Reader { get; }
         internal EndPoint RemoteEndPoint { get => this.Client.Client.RemoteEndPoint; }
+        internal NetworkStream Stream { get; private set; }
 
-        internal TCPSocketClientState(TcpClient client) : base()
+        internal TCPSocketProtocolServer(TcpClient client) : base()
         {
             this.Client = client;
             this.Buffer = new byte[BufferSize];
@@ -25,9 +28,17 @@ namespace Octovisor.Server.Clients
         public void ClearBuffer()
             => Array.Clear(this.Buffer, 0, this.Buffer.Length);
 
+        internal override async Task SendAsync(Message msg)
+        {
+            byte[] bytes = Encoding.UTF8.GetBytes(msg.Serialize() + Config.MessageFinalizer);
+            await this.Stream.WriteAsync(bytes);
+            await this.Stream.FlushAsync();
+        }
+
         public override void Dispose()
         {
             base.Dispose();
+            this.Stream.Dispose();
             this.Client.Close();
             this.Client.Dispose();
             this.ClearBuffer();
