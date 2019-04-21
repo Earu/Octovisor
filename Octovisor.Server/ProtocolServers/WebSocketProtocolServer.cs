@@ -40,6 +40,16 @@ namespace Octovisor.Server.ProtocolServers
                     if (this.States.ContainsKey(socket.ConnectionInfo.Id))
                         await this.OnMessage(this.States[socket.ConnectionInfo.Id], wsMsg);
                 };
+
+                socket.OnPing = async wsBinaryMsg =>
+                {
+                    if (this.States.ContainsKey(socket.ConnectionInfo.Id))
+                    {
+                        WebSocketClientState state = this.States[socket.ConnectionInfo.Id];
+                        if (state.IsRegistered)
+                            await socket.SendPong(wsBinaryMsg);
+                    }
+                };
             });
 
             this.Logger.Nice("Web Socket Server", ConsoleColor.Magenta, $"Running on {this.Server.Location}");
@@ -56,7 +66,10 @@ namespace Octovisor.Server.ProtocolServers
 
         private async Task OnMessage(WebSocketClientState state, string wsMessage)
         {
-            Message msg = Message.Deserialize(wsMessage);
+            if (string.IsNullOrWhiteSpace(wsMessage) || wsMessage.Length < 1)
+                return;
+
+            Message msg = Message.Deserialize(wsMessage.Substring(0, wsMessage.Length - 1));
             await this.Dispatcher.HandleMessageAsync(state, msg);
         }
     }
