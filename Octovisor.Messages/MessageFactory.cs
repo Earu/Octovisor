@@ -11,6 +11,34 @@ namespace Octovisor.Messages
             this.CurrentMessageID = 0;
         }
 
+        private void SetMessageErrorString(Message msg)
+        {
+            if (!msg.HasException) return;
+            if (msg.HasException && !string.IsNullOrWhiteSpace(msg.Error)) return;
+
+            switch (msg.Status)
+            {
+                case MessageStatus.NetworkError:
+                    msg.Error = "There was a problem with the network";
+                    break;
+                case MessageStatus.MalformedMessageError:
+                    msg.Error = "Could not read a message because it is malformed";
+                    break;
+                case MessageStatus.ProcessNotFound:
+                    msg.Error = "Could not find the target process specified";
+                    break;
+                case MessageStatus.ServerError:
+                    msg.Error = "There was a problem with your transmission";
+                    break;
+                case MessageStatus.TargetError:
+                    msg.Error = "The target remote process encountered an error when processing your transmission";
+                    break;
+                default:
+                    msg.Error = null;
+                    break;
+            }
+        }
+
         public Message CreateClientRegisterMessage(string processName, string token)
         {
             Message msg = new Message
@@ -73,6 +101,7 @@ namespace Octovisor.Messages
             };
 
             Interlocked.Increment(ref this.CurrentMessageID);
+            this.SetMessageErrorString(msg);
 
             return msg;
         }
@@ -107,6 +136,8 @@ namespace Octovisor.Messages
                 Type = MessageType.Response,
                 Status = status,
             };
+
+            this.SetMessageErrorString(newMsg);
 
             return newMsg;
         }
