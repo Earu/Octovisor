@@ -22,6 +22,9 @@ namespace Octovisor.Client
         private readonly byte[] Buffer;
         private readonly Config Config;
         private readonly MessageReader Reader;
+        private volatile TaskCompletionSource<bool> RegisterTCS;
+        private volatile TaskCompletionSource<bool> UnregisterTCS;
+        private volatile TaskCompletionSource<List<RemoteProcessData>> RequestProcessesInfoTCS;
 
         /// <summary>
         /// Fired when something is logged
@@ -133,6 +136,8 @@ namespace Octovisor.Client
 
         private void HandleUpdateProcessMessage(Message msg, bool isRegisterUpdate)
         {
+            if (msg.HasException) return; //timeout
+
             ProcessUpdateData updateData = msg.GetData<ProcessUpdateData>();
             this.CompleteProcessUpdateTCS(updateData, isRegisterUpdate ? this.RegisterTCS : this.UnregisterTCS);
 
@@ -142,6 +147,8 @@ namespace Octovisor.Client
 
         private void HandleRequestProcessesMessage(Message msg)
         {
+            if (msg.HasException) return; //timeout
+
             List<RemoteProcessData> processesData = msg.GetData<List<RemoteProcessData>>();
             this.RequestProcessesInfoTCS?.SetResult(processesData);
         }
@@ -223,48 +230,55 @@ namespace Octovisor.Client
             }
         }
 
-        private TaskCompletionSource<bool> RegisterTCS;
+        private async Task<T> WaitInternalResponseAsync<T>(TaskCompletionSource<T> tcs)
+        {
+            CancellationTokenSource cts = new CancellationTokenSource(5000);
+            cts.Token.Register(() =>
+            {
+                if (!tcs.Task.IsCompleted)
+                    tcs.SetException(new TimeOutException());
+            }, false);
+
+            return await tcs.Task;
+        }
+
         private async Task RegisterAsync()
         {
             await this.SendAsync(this.MessageFactory.CreateClientRegisterMessage(this.Config.ProcessName, this.Config.Token));
             this.LogEvent("Registering on server");
 
             this.RegisterTCS = new TaskCompletionSource<bool>();
-            CancellationTokenSource cts = new CancellationTokenSource(5000);
-            cts.Token.Register(() => this.RegisterTCS?.SetException(new TimeOutException()), false);
-            bool accepted = await this.RegisterTCS.Task;
+            bool accepted = await this.WaitInternalResponseAsync(this.RegisterTCS);
+            this.RegisterTCS = null;
+
             if (accepted)
                 this.IsRegistered = true;
-            this.RegisterTCS = null;
+
             await this.RequestProcessesInfoAsync();
         }
 
-        private TaskCompletionSource<bool> UnregisterTCS;
         private async Task UnregisterAsync()
         {
             await this.SendAsync(this.MessageFactory.CreateClientUnregisterMessage(this.Config.ProcessName, this.Config.Token));
             this.LogEvent("Ending on server");
 
             this.UnregisterTCS = new TaskCompletionSource<bool>();
-            CancellationTokenSource cts = new CancellationTokenSource(5000);
-            cts.Token.Register(() => this.UnregisterTCS?.SetException(new TimeOutException()), false);
-            bool accepted = await this.UnregisterTCS.Task;
+            bool accepted = await this.WaitInternalResponseAsync(this.UnregisterTCS);
+            this.UnregisterTCS = null;
+
             if (accepted)
                 this.IsRegistered = false;
-            this.UnregisterTCS = null;
         }
 
-        private TaskCompletionSource<List<RemoteProcessData>> RequestProcessesInfoTCS;
         private async Task RequestProcessesInfoAsync()
         {
             await this.SendAsync(this.MessageFactory.CreateClientRequestProcessesInfoMessage(this.Config.ProcessName));
             this.LogEvent("Requesting available processes information");
 
             this.RequestProcessesInfoTCS = new TaskCompletionSource<List<RemoteProcessData>>();
-            CancellationTokenSource cts = new CancellationTokenSource(5000);
-            cts.Token.Register(() => this.RequestProcessesInfoTCS?.SetException(new TimeOutException()), false);
-            List<RemoteProcessData> data = await this.RequestProcessesInfoTCS.Task;
+            List<RemoteProcessData> data = await this.WaitInternalResponseAsync(this.RequestProcessesInfoTCS);
             this.RequestProcessesInfoTCS = null;
+
             this.ProcessesInfoReceived?.Invoke(data);
         }
 

@@ -68,12 +68,19 @@ namespace Octovisor.Client
             {
                 TaskCompletionSource<string> tcs = this.TransmissionTCSs[msg.ID];
                 if (!tcs.Task.IsCompleted)
-                    tcs.SetResult(msg.Data);
+                {
+                    if (msg.HasException)
+                        tcs.SetException(new Exception(msg.Error));
+                    else
+                        tcs.SetResult(msg.Data);
+                }
             }
         }
 
         private string OnMessageRequestReceived(Message msg)
         {
+            if (msg.HasException) return null;
+
             if (this.TransmissionHandlers.ContainsKey(msg.Identifier))
                 return this.TransmissionHandlers[msg.Identifier](msg);
 
