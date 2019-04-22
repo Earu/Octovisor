@@ -3,7 +3,6 @@ using Octovisor.Server.ClientStates;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace Octovisor.Server
@@ -12,7 +11,6 @@ namespace Octovisor.Server
     {
         private readonly Logger Logger;
         private readonly MessageFactory Factory;
-        private readonly char MessageFinalizer;
         private readonly string Token;
         private readonly ConcurrentDictionary<string, BaseClientState> States;
 
@@ -20,7 +18,6 @@ namespace Octovisor.Server
         {
             this.Logger = logger;
             this.Factory = new MessageFactory();
-            this.MessageFinalizer = Config.MessageFinalizer;
             this.Token = Config.Instance.Token;
             this.States = new ConcurrentDictionary<string, BaseClientState>();
         }
@@ -146,11 +143,10 @@ namespace Octovisor.Server
             }
             catch
             {
-                this.Logger.Nice("Process", ConsoleColor.Red, $"Remote process \'{state.Name}\' stream broke, terminating");
                 this.TerminateProcess(state.Name);
 
-                ProcessUpdateData enddata = new ProcessUpdateData(true, state.Name);
-                await this.BroadcastMessageAsync(MessageConstants.END_IDENTIFIER, enddata.Serialize());
+                ProcessUpdateData endData = new ProcessUpdateData(true, state.Name);
+                await this.BroadcastMessageAsync(MessageConstants.END_IDENTIFIER, endData.Serialize());
             }
         }
 
@@ -198,21 +194,19 @@ namespace Octovisor.Server
         {
             if (msg.IsMalformed)
             {
-                this.Logger.Warning($"Malformed message received!\n{msg.Data ?? "null"}");
+                if (state is TCPSocketClientState tcpState)
+                    this.Logger.Warning($"Received a malformed message from \'{tcpState.RemoteEndPoint}\'\n{msg.Data}");
+                else
+                    this.Logger.Warning($"Received a malformed message\n{msg.Data}");
+
                 return;
             }
 
             if (this.States.ContainsKey(msg.TargetName) && this.States.ContainsKey(msg.OriginName))
             {
                 await this.ForwardMessageAsync(msg);
-                return;
             }
-
-            if (!this.States.ContainsKey(msg.OriginName))
-            {
-                this.Logger.Warning($"Unknown remote process {msg.OriginName} tried to forward {msg.Length} bytes to {msg.TargetName}");
-            }
-            else
+            else if (this.States.ContainsKey(msg.OriginName) && !this.States.ContainsKey(msg.OriginName))
             {
                 this.Logger.Warning($"{msg.OriginName} tried to forward {msg.Length} bytes to unknown remote process {msg.TargetName}");
                 await this.AnswerMessageAsync(state, msg, null, MessageStatus.ProcessNotFound);

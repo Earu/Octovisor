@@ -80,14 +80,14 @@ namespace Octovisor.Server.ProtocolServers
             }
 
             if (client == null) return;
-            ClientStates.TCPSocketProtocolServer state = new ClientStates.TCPSocketProtocolServer(client);
+            TCPSocketClientState state = new TCPSocketClientState(client);
 
 #pragma warning disable CS4014
             this.ListenAsync(state);
 #pragma warning restore CS4014
         }
 
-        private async Task ListenAsync(ClientStates.TCPSocketProtocolServer state)
+        private async Task ListenAsync(TCPSocketClientState state)
         {
             try
             {

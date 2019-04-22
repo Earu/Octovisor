@@ -44,11 +44,10 @@ namespace Octovisor.Server.Utilities
                 this.Logger.Error(ex.ToString());
         }
 
-        internal async Task OnClientStateExceptionAsync(TCPSocketProtocolServer state, Exception e)
+        internal async Task OnClientStateExceptionAsync(TCPSocketClientState state, Exception e)
         {
             await this.HandleExceptionAsync(e, async () =>
             {
-                this.Logger.Nice("Process", ConsoleColor.Red, $"Remote process \'{state.Name}\' was forcibly closed");
                 this.Dispatcher.TerminateProcess(state.Name);
 
                 ProcessUpdateData enddata = new ProcessUpdateData(true, state.Name);
@@ -56,13 +55,7 @@ namespace Octovisor.Server.Utilities
             });
         }
 
-        internal async Task OnExceptionAsync(Exception e)
-        {
-            await this.HandleExceptionAsync(e, () =>
-            {
-                this.Logger.Nice("Process", ConsoleColor.Red, "A remote process was forcibly closed when connecting");
-                return Task.CompletedTask;
-            });
-        }
+        internal async Task OnExceptionAsync(Exception e) // Happens when a process disconnects when connecting
+            => await this.HandleExceptionAsync(e, () => Task.CompletedTask);
     }
 }

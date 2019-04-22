@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Octovisor.Server.ClientStates
 {
-    internal class TCPSocketProtocolServer : BaseClientState
+    internal class TCPSocketClientState : BaseClientState
     {
         internal const int BufferSize = 256;
 
@@ -17,7 +17,7 @@ namespace Octovisor.Server.ClientStates
         internal EndPoint RemoteEndPoint { get => this.Client.Client.RemoteEndPoint; }
         internal NetworkStream Stream { get; private set; }
 
-        internal TCPSocketProtocolServer(TcpClient client) : base()
+        internal TCPSocketClientState(TcpClient client) : base()
         {
             this.Client = client;
             this.Buffer = new byte[BufferSize];

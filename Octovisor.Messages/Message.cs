@@ -19,7 +19,6 @@ namespace Octovisor.Messages
         NetworkError = 4,
         MalformedMessageError = 5,
         ProcessNotFound = 6,
-        UnknownMessageIdentifier = 7,
     }
 
     public class Message
@@ -86,7 +85,7 @@ namespace Octovisor.Messages
                     OriginName = "UNKNOWN_ORIGIN",
                     TargetName = "UNKNOWN_TARGET",
                     Identifier = "UNKNOWN",
-                    Data = null,
+                    Data = json,
                     Error = ex.Message,
                     Type = MessageType.Unknown,
                     Status = MessageStatus.MalformedMessageError,
