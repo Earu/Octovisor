@@ -42,7 +42,7 @@ namespace Octovisor.Server
                 case MessageConstants.REGISTER_IDENTIFIER:
                     await this.RegisterProcessAsync(state, msg.OriginName, msg.Data);
                     break;
-                case MessageConstants.END_IDENTIFIER:
+                case MessageConstants.TERMINATE_IDENTIFIER:
                     await this.TerminateProcessAsync(msg.OriginName, msg.Data);
                     break;
                 case MessageConstants.REQUEST_PROCESSES_INFO_IDENTIFIER:
@@ -100,19 +100,19 @@ namespace Octovisor.Server
                 this.Logger.Warning($"Attempt to terminate a remote process ({name}) with an invalid token.");
 
                 data = new ProcessUpdateData(false, name);
-                await this.BroadcastMessageAsync(MessageConstants.END_IDENTIFIER, data.Serialize());
+                await this.BroadcastMessageAsync(MessageConstants.TERMINATE_IDENTIFIER, data.Serialize());
             }
             else if (!this.States.ContainsKey(name))
             {
                 this.Logger.Warning($"Attempt to terminate a non-existing remote process ({name}). Discarding.");
 
                 data = new ProcessUpdateData(false, name);
-                await this.BroadcastMessageAsync(MessageConstants.END_IDENTIFIER, data.Serialize());
+                await this.BroadcastMessageAsync(MessageConstants.TERMINATE_IDENTIFIER, data.Serialize());
             }
             else
             {
                 data = new ProcessUpdateData(true, name);
-                await this.BroadcastMessageAsync(MessageConstants.END_IDENTIFIER, data.Serialize());
+                await this.BroadcastMessageAsync(MessageConstants.TERMINATE_IDENTIFIER, data.Serialize());
 
                 BaseClientState state = this.States[name];
                 state.Dispose();
@@ -146,7 +146,7 @@ namespace Octovisor.Server
                 this.TerminateProcess(state.Name);
 
                 ProcessUpdateData endData = new ProcessUpdateData(true, state.Name);
-                await this.BroadcastMessageAsync(MessageConstants.END_IDENTIFIER, endData.Serialize());
+                await this.BroadcastMessageAsync(MessageConstants.TERMINATE_IDENTIFIER, endData.Serialize());
             }
         }
 
