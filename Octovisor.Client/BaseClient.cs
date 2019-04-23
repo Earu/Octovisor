@@ -182,7 +182,7 @@ namespace Octovisor.Client
                 case MessageConstants.REGISTER_IDENTIFIER:
                     this.HandleUpdateProcessMessage(msg, true);
                     break;
-                case MessageConstants.END_IDENTIFIER:
+                case MessageConstants.TERMINATE_IDENTIFIER:
                     this.HandleUpdateProcessMessage(msg, false);
                     break;
                 case MessageConstants.REQUEST_PROCESSES_INFO_IDENTIFIER:

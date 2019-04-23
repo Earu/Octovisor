@@ -62,7 +62,7 @@ namespace Octovisor.Messages
                 ID = -1,
                 OriginName = processName,
                 TargetName = MessageConstants.SERVER_PROCESS_NAME,
-                Identifier = MessageConstants.END_IDENTIFIER,
+                Identifier = MessageConstants.TERMINATE_IDENTIFIER,
                 Data = token,
                 Type = MessageType.Request,
                 Status = MessageStatus.Unknown,
