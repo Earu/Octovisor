@@ -51,7 +51,7 @@ namespace Octovisor.Server.Utilities
                 this.Dispatcher.TerminateProcess(state.Name);
 
                 ProcessUpdateData enddata = new ProcessUpdateData(true, state.Name);
-                await this.Dispatcher.BroadcastMessageAsync(MessageConstants.END_IDENTIFIER, enddata.Serialize());
+                await this.Dispatcher.BroadcastMessageAsync(MessageConstants.TERMINATE_IDENTIFIER, enddata.Serialize());
             });
         }
 

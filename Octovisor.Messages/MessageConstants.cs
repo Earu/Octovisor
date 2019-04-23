@@ -6,7 +6,7 @@
 
         public const string REQUEST_PROCESSES_INFO_IDENTIFIER = "INTERNAL_OCTOVISOR_REQUEST_PROCESS_INFO";
 
-        public const string END_IDENTIFIER = "INTERNAL_OCTOVISOR_PROCESS_END";
+        public const string TERMINATE_IDENTIFIER = "INTERNAL_OCTOVISOR_PROCESS_TERMINATE";
 
         public const string SERVER_PROCESS_NAME = "SERVER";
     }
