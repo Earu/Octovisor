@@ -1,4 +1,7 @@
-﻿namespace Octovisor.Client
+﻿using System.IO;
+using YamlDotNet.Serialization;
+
+namespace Octovisor.Client
 {
     /// <summary>
     /// The Octovisor configuration to be used with the OctoClient
@@ -49,6 +52,7 @@
         /// The string that will be used to segment Octovisor messages
         /// This needs to be the same as the server, it is strongly advised to keep it set to "\0"
         /// </summary>
+        [YamlIgnore]
         public char MessageFinalizer { get; private set; }
 
         /// <summary>
@@ -75,6 +79,28 @@
                 return false;
 
             return true;
+        }
+
+        /// <summary>
+        /// Creates a config object based on a yaml file
+        /// </summary>
+        /// <param name="path">The path to the yaml config file</param>
+        /// <returns>A config object</returns>
+        public static Config FromFile(string path)
+        {
+            if (!File.Exists(path))
+                throw new FileNotFoundException();
+
+            FileInfo fileInfo = new FileInfo(path);
+            if (fileInfo.Extension != "yaml")
+                throw new FileLoadException("Expected a file of yaml format");
+
+            using (StreamReader reader = fileInfo.OpenText())
+            {
+                string yaml = reader.ReadToEnd();
+                Deserializer deserializer = new Deserializer();
+                return deserializer.Deserialize<Config>(yaml);
+            }
         }
     }
 }
