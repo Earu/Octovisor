@@ -30,5 +30,13 @@
                 </Style>
             </RichTextBox.Resources>
         </RichTextBox>
+        <RichTextBox Name="RTBJsonInput" HorizontalAlignment="Left" BorderBrush="#191919" Height="198" Width="365" Margin="415,31,0,0" VerticalAlignment="Top">
+            <RichTextBox.Resources>
+                <Style TargetType="{x:Type Paragraph}">
+                    <Setter Property="Margin" Value="0"/>
+                </Style>
+            </RichTextBox.Resources>
+        </RichTextBox>
+        <ListBox ItemsSource="{Binding Processes}" HorizontalAlignment="Left" BorderBrush="#292929" Background="#191919" Foreground="White" Height="195" Margin="10,235,0,0" VerticalAlignment="Top" Width="100"/>
     </Grid>
 </Window>

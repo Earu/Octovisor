@@ -1,6 +1,7 @@
 ﻿using Octovisor.Client;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Input;
@@ -13,13 +14,31 @@ namespace Octovisor.Debugger.Windows
     public partial class DebuggingWindow : Window
     {
         private readonly OctoClient Client;
+       
         public DebuggingWindow(OctoClient client)
         {
             this.InitializeComponent();
             this.Client = client;
+            this.Processes = new ObservableCollection<RemoteProcess>(client.AvailableProcesses);
             this.PrintInitDetails();
             this.Client.Log += this.PrintLine;
+            this.Client.ProcessEnded += this.OnProcessTerminated;
+            this.Client.ProcessRegistered += this.OnProcessRegistered;
         }
+
+        private void OnProcessRegistered(RemoteProcess proc)
+        {
+            this.Processes.Add(proc);
+            this.PrintLine($"Registering new remote process \'{proc.Name}\'");
+        }
+
+        private void OnProcessTerminated(RemoteProcess proc)
+        {
+            this.Processes.Remove(proc);
+            this.PrintLine($"Terminating remote process \'{proc.Name}\'");
+        }
+
+        public ObservableCollection<RemoteProcess> Processes { get; private set; }
 
         private void OnMouseDrag(object sender, MouseButtonEventArgs e)
             => this.DragMove();
@@ -28,15 +47,10 @@ namespace Octovisor.Debugger.Windows
             => this.Close();
 
         private void OnMaximize(object sender, RoutedEventArgs e)
-        {
-            this.WindowState = this.WindowState == WindowState.Maximized ?
-                WindowState.Normal : WindowState.Maximized;
-        }
+            => this.WindowState = this.WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
 
         private void OnMinimize(object sender, RoutedEventArgs e)
-        {
-            this.WindowState = WindowState.Minimized;
-        }
+            => this.WindowState = WindowState.Minimized;
 
         private string FormattedTime()
         {

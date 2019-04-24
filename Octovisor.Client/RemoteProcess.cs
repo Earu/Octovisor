@@ -97,5 +97,8 @@ namespace Octovisor.Client
 
             await this.Client.TransmitValueAsync<T>(identifier, this.Name, value);
         }
+
+        public override string ToString()
+            => this.Name;
     }
 }
