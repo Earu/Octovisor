@@ -1,5 +1,8 @@
 ﻿using Newtonsoft.Json;
 using System;
+using System.IO;
+using System.IO.Compression;
+using System.Text;
 
 namespace Octovisor.Messages
 {
@@ -47,6 +50,9 @@ namespace Octovisor.Messages
         [JsonProperty(PropertyName = "status")]
         public MessageStatus Status { get; set; }
 
+        [JsonProperty(PropertyName = "compressed")]
+        public bool IsCompressed { get; set; } = false;
+
         [JsonIgnore]
         public int Length { get => this.Data != null ? this.Data.Length : 0; }
 
@@ -56,6 +62,34 @@ namespace Octovisor.Messages
         [JsonIgnore]
         public bool HasException { get => this.Status != MessageStatus.Success && this.Status != MessageStatus.Unknown; }
 
+        public void CompressData()
+        {
+            byte[] dataBytes = Encoding.UTF8.GetBytes(this.Data);
+            using (MemoryStream memory = new MemoryStream())
+            {
+                using (GZipStream gzip = new GZipStream(memory, CompressionMode.Compress, true))
+                    gzip.Write(dataBytes, 0, dataBytes.Length);
+
+                this.Data = Encoding.UTF8.GetString(memory.ToArray());
+            }
+
+            this.IsCompressed = true;
+        }
+
+        public void DecompressData()
+        {
+            byte[] dataBytes = Encoding.UTF8.GetBytes(this.Data);
+            using (MemoryStream memory = new MemoryStream())
+            {
+                using (GZipStream gzip = new GZipStream(memory, CompressionMode.Decompress, true))
+                    gzip.Read(dataBytes, 0, dataBytes.Length);
+
+                this.Data = Encoding.UTF8.GetString(memory.ToArray());
+            }
+
+            this.IsCompressed = false;
+        }
+
         public T GetData<T>()
         {
             if (this.HasException)
@@ -63,6 +97,9 @@ namespace Octovisor.Messages
 
             try
             {
+                if (this.IsCompressed)
+                    this.DecompressData();
+
                 return MessageSerializer.Deserialize<T>(this.Data);
             }
             catch

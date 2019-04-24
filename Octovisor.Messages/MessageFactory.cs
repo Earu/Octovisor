@@ -5,10 +5,12 @@ namespace Octovisor.Messages
     public class MessageFactory
     {
         private int CurrentMessageID;
+        private int CompressionTreshold;
 
-        public MessageFactory()
+        public MessageFactory(int compressionTreshold = 300)
         {
             this.CurrentMessageID = 0;
+            this.CompressionTreshold = compressionTreshold;
         }
 
         private void SetMessageErrorString(Message msg)
@@ -102,6 +104,7 @@ namespace Octovisor.Messages
 
             Interlocked.Increment(ref this.CurrentMessageID);
             this.SetMessageErrorString(msg);
+            if (msg.Length >= this.CompressionTreshold) msg.CompressData();
 
             return msg;
         }
@@ -120,6 +123,7 @@ namespace Octovisor.Messages
             };
 
             Interlocked.Increment(ref this.CurrentMessageID);
+            if (msg.Length >= this.CompressionTreshold) msg.CompressData();
 
             return msg;
         }
@@ -138,6 +142,7 @@ namespace Octovisor.Messages
             };
 
             this.SetMessageErrorString(newMsg);
+            if (msg.Length >= this.CompressionTreshold) msg.CompressData();
 
             return newMsg;
         }
