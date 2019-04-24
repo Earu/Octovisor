@@ -19,7 +19,7 @@ namespace Octovisor.Client
             this.MessageFinalizer = '\0';
             this.BufferSize = 255;
             this.Timeout = 5000;
-            this.CompressionTreshold = 300;
+            this.CompressionThreshold = 300;
         }
 
         /// <summary>
@@ -69,7 +69,7 @@ namespace Octovisor.Client
         /// <summary>
         /// The minimum amount of bytes for data to be compressed
         /// </summary>
-        public int CompressionTreshold { get; set; }
+        public int CompressionThreshold { get; set; }
 
         /// <summary>
         /// Determines if this configuration instance is valid
@@ -81,7 +81,7 @@ namespace Octovisor.Client
                 if (string.IsNullOrWhiteSpace(prop))
                     return false;
 
-            if (this.Port < 1 || this.BufferSize < 1 || this.Timeout < 1 || this.CompressionTreshold < 1)
+            if (this.Port < 1 || this.BufferSize < 1 || this.Timeout < 1 || this.CompressionThreshold < 1)
                 return false;
 
             return true;
@@ -98,7 +98,7 @@ namespace Octovisor.Client
                 throw new FileNotFoundException();
 
             FileInfo fileInfo = new FileInfo(path);
-            if (fileInfo.Extension != "yaml")
+            if (fileInfo.Extension != ".yaml")
                 throw new FileLoadException("Expected a file of yaml format");
 
             using (StreamReader reader = fileInfo.OpenText())

@@ -1,0 +1,41 @@
+﻿<Window x:Class="Octovisor.Debugger.Windows.ConfigWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Octovisor.Debugger"
+        mc:Ignorable="d"
+        WindowStyle="None"
+		WindowStartupLocation="CenterScreen"
+		ResizeMode="NoResize"
+        AllowsTransparency="True"
+        Title="Octovisor Debugger" Height="300" Width="400">
+    <Window.Background>
+        <SolidColorBrush Opacity="0" />
+    </Window.Background>
+    <Grid Background="#222222" Margin="5">
+        <Grid.Effect>
+            <DropShadowEffect BlurRadius="10" RenderingBias="Performance" ShadowDepth="0"/>
+        </Grid.Effect>
+        <Rectangle MouseDown="OnMouseDrag" Fill="#191919" VerticalAlignment="Top" Height="20"></Rectangle>
+        <TextBlock Style="{DynamicResource TextBlock}" Text="Debugger" FontWeight="Bold"/>
+        <Button HorizontalAlignment="Right" VerticalAlignment="Top" Style="{DynamicResource BTNClose}" Click="OnClose"/>
+        <TextBlock Style="{DynamicResource TextBlock}" Text="Address:" Margin="22,40,0,0"/>
+        <TextBox Style="{DynamicResource TextBox}" Name="TBAddress" Margin="20,60,170,0" VerticalAlignment="Top" Height="20" Text="127.0.0.1"/>
+        <TextBlock Style="{DynamicResource TextBlock}" Text="Port:" Margin="227,40,0,0"/>
+        <TextBox Style="{DynamicResource TextBox}" Name="TBPort" Margin="225,60,20,0" VerticalAlignment="Top" Height="20" Text="0000" TextChanged="OnNumberOnlyTextChanged"/>
+        <TextBlock Style="{DynamicResource TextBlock}" Text="Token:" Margin="22,89,0,0"/>
+        <PasswordBox Style="{DynamicResource PasswordBox}" Name="TBToken" Margin="20,110,20,0" VerticalAlignment="Top" Height="20" PasswordChanged="OnTokenChanged"/>
+        <TextBlock Style="{DynamicResource TextBlock}" Name="TBTokenPlaceholder" Text="your token here..." Foreground="#999999" Margin="23,111,0,0" IsHitTestVisible="False"/>
+        <TextBlock Style="{DynamicResource TextBlock}" Text="Process Name:" Margin="22,139,0,0"/>
+        <TextBox Style="{DynamicResource TextBox}" Name="TBProcessName" Foreground="#ffffff" Margin="20,160,20,0" VerticalAlignment="Top" Height="20" Text="octovisor_debugger"/>
+        <TextBlock Style="{DynamicResource TextBlock}" Text="Timeout:" Margin="22,189,0,0"/>
+        <TextBox Style="{DynamicResource TextBox}" Name="TBTimeout" Width="110" Margin="20,210,260,0" VerticalAlignment="Top" Height="20" Text="5000" TextChanged="OnNumberOnlyTextChanged"/>
+        <TextBlock Style="{DynamicResource TextBlock}" Text="Buffer Size:" Margin="143,189,0,0"/>
+        <TextBox Style="{DynamicResource TextBox}" Name="TBBufferSize" Width="110" Margin="140,210,143,0" VerticalAlignment="Top" Height="20" Text="255" TextChanged="OnNumberOnlyTextChanged"/>
+        <TextBlock Style="{DynamicResource TextBlock}" Text="CPR Treshold:" Margin="263,189,0,0"/>
+        <TextBox Style="{DynamicResource TextBox}" Name="TBCompressionTreshold" Width="110" Margin="260,210,20,0" VerticalAlignment="Top" Height="20" Text="300" TextChanged="OnNumberOnlyTextChanged"/>
+        <Button Content="Load Config File" Click="OnConfigFileClick" Width="150" Height="30" Style="{DynamicResource BTNMenu}" Margin="35,250,205,10" />
+        <Button Content="Connect" Click="OnConnect" Width="150" Height="30" Style="{DynamicResource BTNMenu}" Margin="202,250,38,10" />
+    </Grid>
+</Window>
