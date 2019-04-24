@@ -240,5 +240,35 @@ namespace Octovisor.Client
             Message msg = this.MessageFactory.CreateMessageRequest(identifier, this.ProcessName, target, data);
             await this.SendAsync(msg);
         }
+
+        /// <summary>
+        /// Transmits an object to every available remote process
+        /// </summary>
+        /// <typeparam name="T">The type of the object to transmit</typeparam>
+        /// <param name="identifier">The identifier to use when transmiting the object</param>
+        /// <param name="obj">The object to transmit</param>
+        public async Task BroadcastObjectAsync<T>(string identifier, T obj) where T : class
+        {
+            List<Task> tasks = new List<Task>();
+            foreach(KeyValuePair<string, RemoteProcess> proc in this.Processes)
+                tasks.Add(this.TransmitObjectAsync(identifier, proc.Key, obj));
+
+            await Task.WhenAll(tasks);
+        }
+
+        /// <summary>
+        /// Transmits a value to every available remote process
+        /// </summary>
+        /// <typeparam name="T">The type of the value to transmit</typeparam>
+        /// <param name="identifier">The identifier to use when transmiting the value</param>
+        /// <param name="value">The value to transmit</param>
+        public async Task BroadcastValueAsync<T>(string identifier, T value) where T : struct
+        {
+            List<Task> tasks = new List<Task>();
+            foreach (KeyValuePair<string, RemoteProcess> proc in this.Processes)
+                tasks.Add(this.TransmitValueAsync(identifier, proc.Key, value));
+
+            await Task.WhenAll(tasks);
+        }
     }
 }

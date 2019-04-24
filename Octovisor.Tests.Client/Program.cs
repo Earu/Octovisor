@@ -45,7 +45,7 @@ namespace Octovisor.Tests.Client
             RemoteProcess proc = client.GetProcess(procName);
             for (int i = 0; i < 10; i++)
             {
-                string result = await proc.TransmitObjectAsync<string, string>("meme", "a");
+                string result = await proc.TransmitObjectAsync<string, string>("meme", new string('A',10000));
                 Console.WriteLine($"{client.ProcessName}: {result}");
             }
             Console.WriteLine($"Took {(DateTime.Now - last).TotalMilliseconds}ms");
