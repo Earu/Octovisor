@@ -19,6 +19,7 @@ namespace Octovisor.Client
             this.MessageFinalizer = '\0';
             this.BufferSize = 255;
             this.Timeout = 5000;
+            this.CompressionTreshold = 300;
         }
 
         /// <summary>
@@ -66,6 +67,11 @@ namespace Octovisor.Client
         public int Timeout { get; set; }
 
         /// <summary>
+        /// The minimum amount of bytes for data to be compressed
+        /// </summary>
+        public int CompressionTreshold { get; set; }
+
+        /// <summary>
         /// Determines if this configuration instance is valid
         /// </summary>
         public bool IsValid()
@@ -75,7 +81,7 @@ namespace Octovisor.Client
                 if (string.IsNullOrWhiteSpace(prop))
                     return false;
 
-            if (this.Port < 1 || this.BufferSize < 1 || this.Timeout < 1)
+            if (this.Port < 1 || this.BufferSize < 1 || this.Timeout < 1 || this.CompressionTreshold < 1)
                 return false;
 
             return true;
