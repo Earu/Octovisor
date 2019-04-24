@@ -28,6 +28,7 @@ namespace Octovisor.Tests.Client2
             };
 
             OctoClient client = new OctoClient(config);
+            //OctoClient client = new OctoClient("config.yaml");
             await client.ConnectAsync();
 
             foreach (RemoteProcess proc in client.AvailableProcesses)

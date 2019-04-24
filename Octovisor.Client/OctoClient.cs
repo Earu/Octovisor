@@ -34,11 +34,30 @@ namespace Octovisor.Client
         private readonly int Timeout;
 
         /// <summary>
-        /// Instanciates a new OctoClient
+        /// Instanciates a new OctoClient based on the config object passsed
         /// </summary>
-        /// <param name="config">A configuration object</param>
+        /// <param name="config">The config object</param>
         public OctoClient(Config config) : base(config)
         {
+            this.ProcessName = config.ProcessName;
+            this.Processes = new Dictionary<string, RemoteProcess>();
+            this.TransmissionHandlers = new Dictionary<string, Func<Message, string>>();
+            this.TransmissionTCSs = new Dictionary<int, TaskCompletionSource<string>>();
+            this.Timeout = config.Timeout;
+
+            this.ProcessUpdate += this.OnProcessUpdate;
+            this.ProcessesInfoReceived += this.OnProcessesInfoReceived;
+            this.MessageRequestReceived += this.OnMessageRequestReceived;
+            this.MessageResponseReceived += this.OnMessageResponseReceived;
+        }
+
+        /// <summary>
+        /// Instanciates a new OctoClient with the path to the config file to use
+        /// </summary>
+        /// <param name="configPath">The path to the config file to use</param>
+        public OctoClient(string configPath) : base(Config.FromFile(configPath))
+        {
+            Config config = Config.FromFile(configPath);
             this.ProcessName = config.ProcessName;
             this.Processes = new Dictionary<string, RemoteProcess>();
             this.TransmissionHandlers = new Dictionary<string, Func<Message, string>>();
@@ -64,16 +83,15 @@ namespace Octovisor.Client
 
         private void OnMessageResponseReceived(Message msg)
         {
-            if (this.TransmissionTCSs.ContainsKey(msg.ID))
+            if (!this.TransmissionTCSs.ContainsKey(msg.ID)) return;
+
+            TaskCompletionSource<string> tcs = this.TransmissionTCSs[msg.ID];
+            if (!tcs.Task.IsCompleted)
             {
-                TaskCompletionSource<string> tcs = this.TransmissionTCSs[msg.ID];
-                if (!tcs.Task.IsCompleted)
-                {
-                    if (msg.HasException)
-                        tcs.SetException(new Exception(msg.Error));
-                    else
-                        tcs.SetResult(msg.Data);
-                }
+                if (msg.HasException)
+                    tcs.SetException(new Exception(msg.Error));
+                else
+                    tcs.SetResult(msg.Data);
             }
         }
 
