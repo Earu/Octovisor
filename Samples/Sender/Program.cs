@@ -45,7 +45,7 @@ namespace Octovisor.Tests.Client
             RemoteProcess proc = client.GetProcess(procName);
             for (int i = 0; i < 10; i++)
             {
-                string result = await proc.TransmitObjectAsync<string, string>("meme", new string('A',10000));
+                string result = await proc.TransmitObjectAsync<TestClass, string>("meme", new TestClass());
                 Console.WriteLine($"{client.ProcessName}: {result}");
             }
             Console.WriteLine($"Took {(DateTime.Now - last).TotalMilliseconds}ms");
@@ -53,7 +53,7 @@ namespace Octovisor.Tests.Client
 
         static async Task MainAsync()
         {
-            var client1 = await CreateClientAsync("Meta1");
+            var client1 = await CreateClientAsync("Process1");
             //var client2 = await CreateClientAsync("Meta2");
             SpamRemoteProcessAsync(client1, "Process2");
             //SpamRemoteProcessAsync(client2, "Process2");
