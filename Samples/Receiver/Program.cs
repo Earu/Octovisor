@@ -17,6 +17,7 @@ namespace Octovisor.Tests.Client2
     {
         static void Main() 
             => MainAsync().GetAwaiter().GetResult();
+
         static async Task MainAsync()
         {
             Config config = new Config
@@ -28,16 +29,17 @@ namespace Octovisor.Tests.Client2
             };
 
             OctoClient client = new OctoClient(config);
-            //OctoClient client = new OctoClient("config.yaml");
+            client.Log += Console.WriteLine;
+
             await client.ConnectAsync();
+            Console.WriteLine("Ready");
 
             foreach (RemoteProcess proc in client.AvailableProcesses)
                 Console.WriteLine(proc.Name);
 
-            client.OnTransmission<string, string>("meme", (proc, data) =>
+            client.OnTransmission<TestClass, string>("meme", (proc, data) =>
             {
-                Console.WriteLine(proc.Name);
-                Console.WriteLine(data);
+                Console.WriteLine($"{proc.Name}: {(data is null ? "null" : data.ToString())}");
 
                 return "hello world";
             });

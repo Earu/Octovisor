@@ -41,6 +41,9 @@ namespace Octovisor.Messages
         [JsonProperty(PropertyName = "data")]
         public string Data { get; set; }
 
+        /*[JsonProperty(PropertyName = "compressed_data")]
+        public byte[] CompressedData { get; set; } = new byte[0];*/
+
         [JsonProperty(PropertyName = "error")]
         public string Error { get; set; }
 
@@ -64,30 +67,32 @@ namespace Octovisor.Messages
 
         public void CompressData()
         {
-            byte[] dataBytes = Encoding.UTF8.GetBytes(this.Data);
+            /*byte[] dataBytes = Encoding.UTF8.GetBytes(this.Data);
             using (MemoryStream memory = new MemoryStream())
             {
                 using (GZipStream gzip = new GZipStream(memory, CompressionMode.Compress, true))
                     gzip.Write(dataBytes, 0, dataBytes.Length);
 
-                this.Data = Encoding.UTF8.GetString(memory.ToArray());
+                this.CompressedData = memory.ToArray();
+                this.Data = null;
             }
 
-            this.IsCompressed = true;
+            this.IsCompressed = true;*/
         }
 
         public void DecompressData()
         {
-            byte[] dataBytes = Encoding.UTF8.GetBytes(this.Data);
+            /*byte[] dataBytes = this.CompressedData;
             using (MemoryStream memory = new MemoryStream())
             {
                 using (GZipStream gzip = new GZipStream(memory, CompressionMode.Decompress, true))
                     gzip.Read(dataBytes, 0, dataBytes.Length);
 
                 this.Data = Encoding.UTF8.GetString(memory.ToArray());
+                Array.Clear(this.CompressedData, 0, this.CompressedData.Length);
             }
 
-            this.IsCompressed = false;
+            this.IsCompressed = false;*/
         }
 
         public T GetData<T>()
@@ -132,5 +137,21 @@ namespace Octovisor.Messages
 
         public string Serialize()
             => MessageSerializer.Serialize(this);
+
+        // for debug purposes
+        public override string ToString()
+        {
+            return $@"Message [ 
+    ID: {this.ID}, 
+    Identifier: {this.Identifier}, 
+    Origin: {this.OriginName}, 
+    Target: {this.TargetName},
+    Data: {(string.IsNullOrWhiteSpace(this.Data) ? "none" : this.Data)},
+    Error: {(string.IsNullOrWhiteSpace(this.Error) ? "none" : this.Error)},
+    Type: {this.Type},
+    Status: {this.Status},
+    IsCompressed: {this.IsCompressed},
+            ]";
+        }
     }
 }

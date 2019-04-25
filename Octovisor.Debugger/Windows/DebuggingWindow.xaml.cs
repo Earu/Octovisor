@@ -1,10 +1,13 @@
 ﻿using Octovisor.Client;
+using Octovisor.Debugger.Popups;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 
 namespace Octovisor.Debugger.Windows
 {
@@ -19,32 +22,49 @@ namespace Octovisor.Debugger.Windows
         {
             this.InitializeComponent();
             this.Client = client;
-            this.Processes = new ObservableCollection<RemoteProcess>(client.AvailableProcesses);
+            this.Processes = new ObservableCollection<string>(client.AvailableProcesses.Select(proc => proc.Name));
             this.PrintInitDetails();
             this.Client.Log += this.PrintLine;
             this.Client.ProcessEnded += this.OnProcessTerminated;
             this.Client.ProcessRegistered += this.OnProcessRegistered;
         }
 
+        public ObservableCollection<string> Processes { get; private set; }
+
         private void OnProcessRegistered(RemoteProcess proc)
         {
-            this.Processes.Add(proc);
+            this.Processes.Add(proc.Name);
             this.PrintLine($"Registering new remote process \'{proc.Name}\'");
         }
 
         private void OnProcessTerminated(RemoteProcess proc)
         {
-            this.Processes.Remove(proc);
+            this.Processes.Remove(proc.Name);
             this.PrintLine($"Terminating remote process \'{proc.Name}\'");
         }
-
-        public ObservableCollection<RemoteProcess> Processes { get; private set; }
 
         private void OnMouseDrag(object sender, MouseButtonEventArgs e)
             => this.DragMove();
 
-        private void OnClose(object sender, RoutedEventArgs e)
-            => this.Close();
+        private async void OnClose(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                Button btn = (Button)sender;
+                btn.IsHitTestVisible = false;
+                btn.Background = Brushes.Gray;
+
+                await this.Client.DisconnectAsync();
+            }
+            catch(Exception ex)
+            {
+                ExceptionPopup.ShowException(ex);
+            }
+            finally
+            {
+                this.Close();
+            }
+        }
 
         private void OnMaximize(object sender, RoutedEventArgs e)
             => this.WindowState = this.WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
@@ -62,14 +82,16 @@ namespace Octovisor.Debugger.Windows
         }
 
         private void PrintLine(string input)
-            => this.RTBConsole.AppendText($"{this.FormattedTime()} {input}\n".Replace("\t", new string(' ', 4)));
+        {
+            this.RTBConsole.AppendText($"{this.FormattedTime()} {input}\n".Replace("\t", new string(' ', 4)));
+            this.RTBConsole.ScrollToEnd();
+        }
 
         private void PrintInitDetails()
         {
-            List<RemoteProcess> procs = this.Client.AvailableProcesses;
-            string displayProcs = string.Join(",", procs.Select(proc => proc.Name).ToArray());
+            string displayProcs = string.Join(",", this.Processes);
             this.PrintLine("Registered on server");
-            this.PrintLine($"Connected processes ({procs.Count}):\n{displayProcs}");
+            this.PrintLine($"Connected processes ({this.Processes.Count}): {displayProcs}");
         }
     }
 }

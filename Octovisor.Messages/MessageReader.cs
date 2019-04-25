@@ -6,7 +6,7 @@ namespace Octovisor.Messages
     public class MessageReader
     {
         // Number of bytes possible before clearing up data (1GB)
-        private const int Treshold = 1000000000; 
+        private const int Threshold = 1000000000; 
 
         private readonly char MessageFinalizer;
         private readonly StringBuilder Builder;
@@ -14,7 +14,7 @@ namespace Octovisor.Messages
         public MessageReader(char messageFinalizer)
         {
             this.MessageFinalizer = messageFinalizer;
-            this.Builder = new StringBuilder(Treshold);
+            this.Builder = new StringBuilder();
         }
 
         public int Size { get => this.Builder.Length; }
@@ -43,7 +43,7 @@ namespace Octovisor.Messages
                 }
             }
 
-            if (this.Size >= Treshold)
+            if (this.Size >= Threshold)
                 this.Clear();
 
             return msgs;
