@@ -1,4 +1,4 @@
-﻿using Octovisor.Messages;
+using Octovisor.Messages;
 using Octovisor.Server.ClientStates;
 using System;
 using System.Collections.Concurrent;
@@ -64,9 +64,9 @@ namespace Octovisor.Server
         private async Task RegisterProcessAsync(BaseClientState state, string name, string token)
         {
             ProcessUpdateData data;
-            if (token != this.Token)
+            if (string.IsNullOrWhiteSpace(token) || token != this.Token)
             {
-                this.Logger.Warning($"Attempt to register a remote process ({name}) with an invalid token.");
+                this.Logger.Warning($"Attempt to register a remote process ({name}) with an invalid token ({token}).");
                 data = new ProcessUpdateData(false, name);
             }
             else if (this.States.Count >= Config.Instance.MaxProcesses)
@@ -141,7 +141,7 @@ namespace Octovisor.Server
             {
                 await state.SendAsync(msg);
             }
-            catch
+            catch(Exception ex)
             {
                 this.TerminateProcess(state.Name);
 

@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using YamlDotNet.Serialization;
 
 namespace Octovisor.Debugger.Windows
@@ -90,6 +91,10 @@ namespace Octovisor.Debugger.Windows
 
         private async void OnConnect(object sender, RoutedEventArgs e)
         {
+            Button btn = (Button)sender;
+            btn.IsHitTestVisible = false;
+            btn.Background = Brushes.Gray;
+
             try
             {
                 Config config = new Config
@@ -115,6 +120,10 @@ namespace Octovisor.Debugger.Windows
             {
                 ExceptionPopup.ShowException(ex);
             }
+
+            btn.IsHitTestVisible = true;
+            BrushConverter converter = new BrushConverter();
+            btn.Background = (Brush)converter.ConvertFromString("#191919");
         }
 
         private void OnNumberOnlyTextChanged(object sender, TextChangedEventArgs e)
