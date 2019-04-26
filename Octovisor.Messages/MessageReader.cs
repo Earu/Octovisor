@@ -1,10 +1,13 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Text;
 
 namespace Octovisor.Messages
 {
     public class MessageReader
     {
+        public event Action<string> MessageParsed;
+
         // Number of bytes possible before clearing up data (1GB)
         private const int Threshold = 1000000000; 
 
@@ -37,7 +40,10 @@ namespace Octovisor.Messages
                 {
                     string smsg = current.Substring(0, current.Length - 1);
                     if (!string.IsNullOrWhiteSpace(smsg))
+                    {
+                        this.MessageParsed?.Invoke(smsg);
                         msgs.Add(Message.Deserialize(smsg));
+                    }
 
                     this.Clear();
                 }

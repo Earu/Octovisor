@@ -44,5 +44,13 @@ namespace Octovisor.Debugger.Popups
             popup.TBException.Text = ex.Message;
             popup.ShowDialog();
         }
+
+        public static void ShowMessage(string msg)
+        {
+            ExceptionPopup popup = new ExceptionPopup();
+            popup.TBMeme.Text = GetRandomMeme();
+            popup.TBException.Text = msg;
+            popup.ShowDialog();
+        }
     }
 }
