@@ -1,12 +1,17 @@
-﻿using Octovisor.Client;
+﻿using ICSharpCode.AvalonEdit.Highlighting;
+using ICSharpCode.AvalonEdit.Highlighting.Xshd;
+using Octovisor.Client;
 using Octovisor.Debugger.Popups;
 using System;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Xml;
 
 namespace Octovisor.Debugger.Windows
 {
@@ -27,6 +32,12 @@ namespace Octovisor.Debugger.Windows
             this.Client.ProcessEnded += this.OnProcessTerminated;
             this.Client.ProcessRegistered += this.OnProcessRegistered;
             this.Client.MessageParsed += this.PrintLine;
+
+            if (File.Exists("Resources/syntax_highlight.xshd"))
+            {
+                using (XmlTextReader reader = new XmlTextReader(File.OpenRead("Resources/syntax_highlight.xshd")))
+                    this.Editor.SyntaxHighlighting = HighlightingLoader.Load(reader, HighlightingManager.Instance);
+            }
         }
 
         public ObservableCollection<string> Processes { get; private set; }
@@ -81,10 +92,21 @@ namespace Octovisor.Debugger.Windows
             return $"{niceHour}:{niceMin}";
         }
 
+        private static readonly object Locker = new object();
         private void PrintLine(string input)
         {
-            this.RTBConsole.AppendText($"{this.FormattedTime()} {input}\n".Replace("\t", new string(' ', 4)));
-            this.RTBConsole.ScrollToEnd();
+            lock(Locker)
+            {
+                TextRange trTime = new TextRange(this.RTBConsole.Document.ContentEnd, this.RTBConsole.Document.ContentEnd);
+                trTime.Text = this.FormattedTime();
+                trTime.ApplyPropertyValue(TextElement.ForegroundProperty, Brushes.Coral);
+
+                TextRange trOutput = new TextRange(this.RTBConsole.Document.ContentEnd, this.RTBConsole.Document.ContentEnd);
+                trOutput.Text = $" {input}\n".Replace("\t", new string(' ', 4));
+                trOutput.ApplyPropertyValue(TextElement.ForegroundProperty, Brushes.White);
+
+                this.RTBConsole.ScrollToEnd();
+            }
         }
 
         private void PrintInitDetails()
@@ -92,6 +114,11 @@ namespace Octovisor.Debugger.Windows
             string displayProcs = string.Join(",", this.Processes);
             this.PrintLine("Registered on server");
             this.PrintLine($"Connected processes ({this.Processes.Count}): {displayProcs}");
+        }
+
+        private void OnEditorTextChanged(object sender, EventArgs e)
+        {
+
         }
     }
 }

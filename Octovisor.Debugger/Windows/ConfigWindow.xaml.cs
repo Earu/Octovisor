@@ -115,6 +115,10 @@ namespace Octovisor.Debugger.Windows
 
                 DebuggingWindow win = new DebuggingWindow(client);
                 win.ShowDialog();
+
+                // In case debugging window is closed with Windows
+                if (client.IsRegistered)
+                    await client.DisconnectAsync();
             }
             catch(Exception ex)
             {
