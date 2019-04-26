@@ -1,7 +1,6 @@
 ﻿using Octovisor.Client;
 using Octovisor.Debugger.Popups;
 using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows;
@@ -27,6 +26,7 @@ namespace Octovisor.Debugger.Windows
             this.Client.Log += this.PrintLine;
             this.Client.ProcessEnded += this.OnProcessTerminated;
             this.Client.ProcessRegistered += this.OnProcessRegistered;
+            this.Client.MessageParsed += this.PrintLine;
         }
 
         public ObservableCollection<string> Processes { get; private set; }

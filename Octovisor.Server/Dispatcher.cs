@@ -141,7 +141,7 @@ namespace Octovisor.Server
             {
                 await state.SendAsync(msg);
             }
-            catch(Exception ex)
+            catch
             {
                 this.TerminateProcess(state.Name);
 
