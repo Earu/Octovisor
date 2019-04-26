@@ -1,4 +1,4 @@
-﻿using Octovisor.Client.Exceptions;
+using Octovisor.Client.Exceptions;
 using Octovisor.Messages;
 using System;
 using System.Collections.Generic;
@@ -121,7 +121,6 @@ namespace Octovisor.Client
                 await this.UnregisterAsync();
 
             this.IsConnected = false;
-
             await this.ReceivingTask;
 
             this.Stream.Dispose();
@@ -138,15 +137,13 @@ namespace Octovisor.Client
 
         private void CompleteProcessUpdateTCS(ProcessUpdateData updateData, TaskCompletionSource<bool> tcs)
         {
-            if (tcs == null) return; //syncronization issues
-
             if (updateData.Accepted && updateData.Name.Equals(this.Config.ProcessName))
                 tcs?.SetResult(updateData.Accepted);
         }
 
         private void HandleUpdateProcessMessage(Message msg, bool isRegisterUpdate)
         {
-            if (msg.HasException) return;
+            if (msg.HasException) return; //timeout
 
             ProcessUpdateData updateData = msg.GetData<ProcessUpdateData>();
             this.CompleteProcessUpdateTCS(updateData, isRegisterUpdate ? this.RegisterTCS : this.UnregisterTCS);
@@ -254,10 +251,10 @@ namespace Octovisor.Client
 
         private async Task RegisterAsync()
         {
+            this.RegisterTCS = new TaskCompletionSource<bool>();
             await this.SendAsync(this.MessageFactory.CreateClientRegisterMessage(this.Config.ProcessName, this.Config.Token));
             this.LogEvent("Registering on server");
 
-            this.RegisterTCS = new TaskCompletionSource<bool>();
             bool accepted = await this.WaitInternalResponseAsync(this.RegisterTCS);
             this.RegisterTCS = null;
 
@@ -269,10 +266,10 @@ namespace Octovisor.Client
 
         private async Task UnregisterAsync()
         {
+            this.UnregisterTCS = new TaskCompletionSource<bool>();
             await this.SendAsync(this.MessageFactory.CreateClientUnregisterMessage(this.Config.ProcessName, this.Config.Token));
             this.LogEvent("Ending on server");
 
-            this.UnregisterTCS = new TaskCompletionSource<bool>();
             bool accepted = await this.WaitInternalResponseAsync(this.UnregisterTCS);
             this.UnregisterTCS = null;
 
@@ -282,10 +279,10 @@ namespace Octovisor.Client
 
         private async Task RequestProcessesInfoAsync()
         {
+            this.RequestProcessesInfoTCS = new TaskCompletionSource<List<RemoteProcessData>>();
             await this.SendAsync(this.MessageFactory.CreateClientRequestProcessesInfoMessage(this.Config.ProcessName));
             this.LogEvent("Requesting available processes information");
 
-            this.RequestProcessesInfoTCS = new TaskCompletionSource<List<RemoteProcessData>>();
             List<RemoteProcessData> data = await this.WaitInternalResponseAsync(this.RequestProcessesInfoTCS);
             this.RequestProcessesInfoTCS = null;
 
