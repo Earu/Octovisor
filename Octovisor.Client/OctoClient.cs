@@ -52,26 +52,6 @@ namespace Octovisor.Client
         }
 
         /// <summary>
-        /// Instanciates a new OctoClient with the path to the config file to use
-        /// </summary>
-        /// <param name="configPath">The path to the config file to use</param>
-        public OctoClient(string configPath) : base(Config.FromFile(configPath))
-        {
-            Config config = Config.FromFile(configPath);
-            this.ProcessName = config.ProcessName;
-            this.Processes = new Dictionary<string, RemoteProcess>();
-            this.TransmissionHandlers = new Dictionary<string, Func<Message, string>>();
-            this.TransmissionTCSs = new Dictionary<int, TaskCompletionSource<string>>();
-            this.Timeout = config.Timeout;
-
-            this.ProcessUpdate += this.OnProcessUpdate;
-            this.ProcessesInfoReceived += this.OnProcessesInfoReceived;
-            this.MessageRequestReceived += this.OnMessageRequestReceived;
-            this.MessageResponseReceived += this.OnMessageResponseReceived;
-        }
-
-
-        /// <summary>
         /// Gets the list of all currently available processes
         /// </summary>
         public List<RemoteProcess> AvailableProcesses { get => this.Processes.Select(x => x.Value).ToList(); }

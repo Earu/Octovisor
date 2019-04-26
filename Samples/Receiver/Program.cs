@@ -31,6 +31,12 @@ namespace Octovisor.Tests.Client2
             OctoClient client = new OctoClient(config);
             client.Log += Console.WriteLine;
 
+            for (int i = 0; i < 30; i++)
+            {
+                await client.ConnectAsync();
+                await client.DisconnectAsync();
+            }
+
             await client.ConnectAsync();
             Console.WriteLine("Ready");
 
