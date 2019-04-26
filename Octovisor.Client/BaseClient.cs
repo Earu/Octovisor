@@ -46,6 +46,11 @@ namespace Octovisor.Client
         /// </summary>
         public event Func<Task> Disconnected;
 
+        /// <summary>
+        /// Fired whenever a message is going to be used by the client
+        /// </summary>
+        public event Action<string> MessageParsed;
+
         internal event Action<ProcessUpdateData, bool> ProcessUpdate;
         internal event Action<List<RemoteProcessData>> ProcessesInfoReceived;
         internal event Func<Message, string> MessageRequestReceived;
@@ -74,6 +79,7 @@ namespace Octovisor.Client
 
             this.Config = config;
             this.Reader = new MessageReader(config.MessageFinalizer);
+            this.Reader.MessageParsed += content => this.MessageParsed?.Invoke(content);
             this.Buffer = new byte[config.BufferSize];
             this.MessageFactory = new MessageFactory(config.CompressionThreshold);
             this.IsRegistered = false;
@@ -114,11 +120,13 @@ namespace Octovisor.Client
             if (this.Client.Connected) // socket connected
                 await this.UnregisterAsync();
 
-            this.Stream.Dispose();
-            this.Client.Dispose();
             this.IsConnected = false;
 
             await this.ReceivingTask;
+
+            this.Stream.Dispose();
+            this.Client.Dispose();
+            this.Reader.Clear();
             this.ReceivingTask = null;
 
             if (this.Disconnected != null)
@@ -130,13 +138,15 @@ namespace Octovisor.Client
 
         private void CompleteProcessUpdateTCS(ProcessUpdateData updateData, TaskCompletionSource<bool> tcs)
         {
+            if (tcs == null) return; //syncronization issues
+
             if (updateData.Accepted && updateData.Name.Equals(this.Config.ProcessName))
                 tcs?.SetResult(updateData.Accepted);
         }
 
         private void HandleUpdateProcessMessage(Message msg, bool isRegisterUpdate)
         {
-            if (msg.HasException) return; //timeout
+            if (msg.HasException) return;
 
             ProcessUpdateData updateData = msg.GetData<ProcessUpdateData>();
             this.CompleteProcessUpdateTCS(updateData, isRegisterUpdate ? this.RegisterTCS : this.UnregisterTCS);
@@ -232,12 +242,12 @@ namespace Octovisor.Client
 
         private async Task<T> WaitInternalResponseAsync<T>(TaskCompletionSource<T> tcs)
         {
-            CancellationTokenSource cts = new CancellationTokenSource(5000);
+            CancellationTokenSource cts = new CancellationTokenSource(this.Config.Timeout);
             cts.Token.Register(() =>
             {
                 if (!tcs.Task.IsCompleted)
                     tcs.SetException(new TimeOutException());
-            }, false);
+            }, true);
 
             return await tcs.Task;
         }
