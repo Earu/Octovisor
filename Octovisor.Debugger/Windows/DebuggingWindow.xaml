@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Octovisor.Debugger.Windows"
+        xmlns:avalonEdit="http://icsharpcode.net/sharpdevelop/avalonedit"
         mc:Ignorable="d"
         WindowStyle="None"
 		WindowStartupLocation="CenterScreen"
@@ -30,12 +31,9 @@
                 </Style>
             </RichTextBox.Resources>
         </RichTextBox>
-        <RichTextBox Name="RTBJsonInput" HorizontalAlignment="Left" BorderBrush="#191919" Height="198" Width="365" Margin="415,31,0,0" VerticalAlignment="Top">
-            <RichTextBox.Resources>
-                <Style TargetType="{x:Type Paragraph}">
-                    <Setter Property="Margin" Value="0"/>
-                </Style>
-            </RichTextBox.Resources>
-        </RichTextBox>
+        <avalonEdit:TextEditor Foreground="Gray" Background="#191919" BorderThickness="1" BorderBrush="#292929" Name="Editor" SyntaxHighlighting="C#" FontFamily="Consolas" FontSize="10pt" Height="200" Width="360" Margin="420,30,10,210" TextChanged="OnEditorTextChanged">
+            <avalonEdit:TextEditor.HorizontalScrollBarVisibility>Hidden</avalonEdit:TextEditor.HorizontalScrollBarVisibility>
+            <avalonEdit:TextEditor.VerticalScrollBarVisibility>Hidden</avalonEdit:TextEditor.VerticalScrollBarVisibility>
+        </avalonEdit:TextEditor>
     </Grid>
 </Window>
