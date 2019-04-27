@@ -3,7 +3,7 @@ Octovisor is a message service that allows you to **share objects and values eas
 
 ### Usage
 Build the **Octovisor.Server project along with Octovisor.Messages** for your system, and make configuration file called config.yaml
-in the same directory as Octovisor.Server.dll, make sure it is formatted like [this](https://github.com/Earu/Octovisor/blob/master/Octovisor.Server/config.yaml.example). 
+in the same directory as Octovisor.Server.dll, make sure it is formatted like [this](https://github.com/Earu/Octovisor/blob/master/Octovisor.Server/config.yaml.example).
 
 Once you have the server running you want to use the octovisor client API (**Octovisor.Client**), add it as reference in your project and follow the example below. Do note that your *Config* object must have the same **token and port** as the config file used for the server.
 
@@ -37,17 +37,19 @@ Config config = new Config
 
 OctoClient client = new OctoClient(config);
 await client.ConnectAsync();
-RemoteProcess proc = client.GetProcess("Process2");
-for (int i = 0; i < 10; i++)
+if (client.TryGetProcess("Process2", out RemoteProcess proc))
 {
-    string result = await proc.TransmitObjectAsync<string, string>("meme", new string('A', 10000));
-    Console.WriteLine(result);
+    for (int i = 0; i < 10; i++)
+    {
+        string result = await proc.TransmitObjectAsync<string, string>("meme", new string('A', 10000));
+        Console.WriteLine(result);
+    }
 }
 ```
 output:
 ```
 no u
-no u 
+no u
 no u
 etc...
 ```
