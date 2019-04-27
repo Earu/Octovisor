@@ -1,18 +1,18 @@
 <?xml version="1.0"?>
 <SyntaxDefinition name="C#" extensions=".cs" xmlns="http://icsharpcode.net/sharpdevelop/syntaxdefinition/2008">
   <!-- The named colors 'Comment' and 'String' are used in SharpDevelop to detect if a line is inside a multiline string/comment -->
-  <Color name="Comment" foreground="LightSteelBlue" exampleText="// comment" />
-  <Color name="String" foreground="BlanchedAlmond" exampleText="string text = &quot;Hello, World!&quot;"/>
-  <Color name="StringInterpolation" foreground="Gray" exampleText="string text = $&quot;Hello, {name}!&quot;"/>
-  <Color name="Char" foreground="BlanchedAlmond" exampleText="char linefeed = '\n';"/>
-  <Color name="Preprocessor" foreground="BlanchedAlmond" exampleText="#region Title" />
+  <Color name="Comment" foreground="DimGray" exampleText="// comment" />
+  <Color name="String" foreground="PeachPuff" exampleText="string text = &quot;Hello, World!&quot;"/>
+  <Color name="StringInterpolation" exampleText="string text = $&quot;Hello, {name}!&quot;"/>
+  <Color name="Char" foreground="PeachPuff" exampleText="char linefeed = '\n';"/>
+  <Color name="Preprocessor" foreground="PeachPuff" exampleText="#region Title" />
   <Color name="Punctuation" foreground="Crimson" exampleText="a(b.c);" />
   <Color name="ValueTypeKeywords" fontWeight="bold" foreground="MediumTurquoise" exampleText="bool b = true;" />
   <Color name="ReferenceTypeKeywords" foreground="MediumTurquoise" exampleText="object o;" />
-  <Color name="MethodCall" foreground="Gray" fontWeight="bold" exampleText="o.ToString();"/>
+  <Color name="MethodCall" fontWeight="bold" exampleText="o.ToString();"/>
   <Color name="NumberLiteral" foreground="MediumSlateBlue" exampleText="3.1415f"/>
-  <Color name="ThisOrBaseReference" fontWeight="bold" exampleText="this.Do(); base.Do();"/>
-  <Color name="NullOrValueKeywords" fontWeight="bold" exampleText="if (value == null)"/>
+  <Color name="ThisOrBaseReference" foreground="MediumTurquoise" fontWeight="bold" exampleText="this.Do(); base.Do();"/>
+  <Color name="NullOrValueKeywords" foreground="MediumTurquoise" fontWeight="bold" exampleText="if (value == null)"/>
   <Color name="Keywords" fontWeight="bold" foreground="MediumTurquoise" exampleText="if (a) {} else {}"/>
   <Color name="GotoKeywords" foreground="MediumTurquoise" exampleText="continue; return null;"/>
   <Color name="ContextKeywords" foreground="MediumTurquoise" exampleText="var a = from x in y select z;"/>
