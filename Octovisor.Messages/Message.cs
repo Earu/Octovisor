@@ -41,8 +41,8 @@ namespace Octovisor.Messages
         [JsonProperty(PropertyName = "data")]
         public string Data { get; set; }
 
-        /*[JsonProperty(PropertyName = "compressed_data")]
-        public byte[] CompressedData { get; set; } = new byte[0];*/
+        [JsonProperty(PropertyName = "compressed_data")]
+        public byte[] CompressedData { get; set; } = new byte[0];
 
         [JsonProperty(PropertyName = "error")]
         public string Error { get; set; }
@@ -57,7 +57,7 @@ namespace Octovisor.Messages
         public bool IsCompressed { get; set; } = false;
 
         [JsonIgnore]
-        public int Length { get => this.Data != null ? this.Data.Length : 0; }
+        public int DataLength { get => this.Data != null ? this.Data.Length : 0; }
 
         [JsonIgnore]
         public bool IsMalformed { get => this.Status == MessageStatus.MalformedMessageError; }
@@ -67,7 +67,7 @@ namespace Octovisor.Messages
 
         public void CompressData()
         {
-            /*byte[] dataBytes = Encoding.UTF8.GetBytes(this.Data);
+            byte[] dataBytes = Encoding.UTF8.GetBytes(this.Data);
             using (MemoryStream memory = new MemoryStream())
             {
                 using (GZipStream gzip = new GZipStream(memory, CompressionMode.Compress, true))
@@ -77,12 +77,12 @@ namespace Octovisor.Messages
                 this.Data = null;
             }
 
-            this.IsCompressed = true;*/
+            this.IsCompressed = true;
         }
 
         public void DecompressData()
         {
-            /*byte[] dataBytes = this.CompressedData;
+            byte[] dataBytes = this.CompressedData;
             using (MemoryStream memory = new MemoryStream())
             {
                 using (GZipStream gzip = new GZipStream(memory, CompressionMode.Decompress, true))
@@ -92,7 +92,7 @@ namespace Octovisor.Messages
                 Array.Clear(this.CompressedData, 0, this.CompressedData.Length);
             }
 
-            this.IsCompressed = false;*/
+            this.IsCompressed = false;
         }
 
         public T GetData<T>()
@@ -105,7 +105,7 @@ namespace Octovisor.Messages
                 if (this.IsCompressed)
                     this.DecompressData();
 
-                return MessageSerializer.Deserialize<T>(this.Data);
+                return MessageSerializer.DeserializeData<T>(this.Data);
             }
             catch
             {
@@ -117,7 +117,7 @@ namespace Octovisor.Messages
         {
             try
             {
-                return MessageSerializer.Deserialize<Message>(json);
+                return MessageSerializer.Deserialize(json);
             }
             catch (Exception ex)
             {

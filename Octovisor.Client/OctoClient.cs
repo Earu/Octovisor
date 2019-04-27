@@ -87,6 +87,7 @@ namespace Octovisor.Client
 
         private void OnProcessesInfoReceived(List<RemoteProcessData> data)
         {
+            data = data ?? new List<RemoteProcessData>(); //nothing ?
             this.Processes.Clear();
             foreach (RemoteProcessData procData in data)
                 this.Processes.Add(procData.Name, new RemoteProcess(this, procData.Name));
@@ -127,7 +128,7 @@ namespace Octovisor.Client
                 RemoteProcess proc = this.GetProcess(msg.OriginName);
                 TResult result = handler(proc, data);
 
-                return MessageSerializer.Serialize(result);
+                return MessageSerializer.SerializeData(result);
             });
         }
 
@@ -186,12 +187,12 @@ namespace Octovisor.Client
             string result = await tcs.Task;
             this.TransmissionTCSs.Remove(id);
 
-            return MessageSerializer.Deserialize<T>(result);
+            return MessageSerializer.DeserializeData<T>(result);
         }
 
         internal async Task<TResult> TransmitObjectAsync<T, TResult>(string identifier, string target, T obj) where T : class
         {
-            string payload = MessageSerializer.Serialize(obj);
+            string payload = MessageSerializer.SerializeData(obj);
             Message msg = this.MessageFactory.CreateMessageRequest(identifier, this.ProcessName, target, payload);
             await this.SendAsync(msg);
 
@@ -200,7 +201,7 @@ namespace Octovisor.Client
 
         internal async Task TransmitObjectAsync<T>(string identifier, string target, T obj) where T : class
         {
-            string payload = MessageSerializer.Serialize(obj);
+            string payload = MessageSerializer.SerializeData(obj);
             Message msg = this.MessageFactory.CreateMessageRequest(identifier, this.ProcessName, target, payload);
             await this.SendAsync(msg);
         }
