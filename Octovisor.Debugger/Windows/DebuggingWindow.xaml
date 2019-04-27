@@ -24,16 +24,18 @@
         <Button HorizontalAlignment="Right" VerticalAlignment="Top" Padding="0,-12,0,0" FontSize="25" Width="30" Content="□" Click="OnMaximize" Style="{DynamicResource BTNMinMax}" Margin="0,0,30,0"/>
         <Button HorizontalAlignment="Right" VerticalAlignment="Top" Padding="0,-19,0,0" FontSize="25" Width="30" Content="_" Click="OnMinimize" Style="{DynamicResource BTNMinMax}" Margin="0,0,60,0"/>
         <Button HorizontalAlignment="Right" VerticalAlignment="Top" Width="30" Click="OnClose" Style="{DynamicResource BTNClose}"/>
-        <RichTextBox Name="RTBConsole" IsReadOnly="True" HorizontalAlignment="Left" Foreground="White" Background="Black" BorderBrush="#191919" Height="200" Width="400" Margin="10,30,0,0" VerticalAlignment="Top">
+        <RichTextBox Name="RTBConsole" IsReadOnly="True" HorizontalAlignment="Left" Foreground="White" Background="Black" BorderBrush="#191919" Height="137" Width="400" Margin="10,293,0,0" VerticalAlignment="Top">
             <RichTextBox.Resources>
                 <Style TargetType="{x:Type Paragraph}">
                     <Setter Property="Margin" Value="0"/>
                 </Style>
             </RichTextBox.Resources>
         </RichTextBox>
-        <avalonEdit:TextEditor Foreground="Gray" Background="#191919" BorderThickness="1" BorderBrush="#292929" Name="Editor" SyntaxHighlighting="C#" FontFamily="Consolas" FontSize="10pt" Height="200" Width="360" Margin="420,30,10,210" TextChanged="OnEditorTextChanged">
+        <avalonEdit:TextEditor Foreground="#dddddd" Background="#191919" BorderThickness="1" BorderBrush="#292929" Name="Editor" SyntaxHighlighting="C#" FontFamily="Consolas" FontSize="10pt" Margin="10,25,10,187">
             <avalonEdit:TextEditor.HorizontalScrollBarVisibility>Hidden</avalonEdit:TextEditor.HorizontalScrollBarVisibility>
             <avalonEdit:TextEditor.VerticalScrollBarVisibility>Hidden</avalonEdit:TextEditor.VerticalScrollBarVisibility>
         </avalonEdit:TextEditor>
+        <Button Content="Run Code" Click="OnRunCode" Width="195" Height="30" Style="{DynamicResource BTNMenu}" Margin="10,258,585,152" />
+        <Button Content="Load Script File" Click="OnLoadScriptFile" Width="195" Height="30" Style="{DynamicResource BTNMenu}" Margin="215,258,380,152" />
     </Grid>
 </Window>

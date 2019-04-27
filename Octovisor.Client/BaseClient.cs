@@ -79,7 +79,6 @@ namespace Octovisor.Client
 
             this.Config = config;
             this.Reader = new MessageReader(config.MessageFinalizer);
-            this.Reader.MessageParsed += content => this.MessageParsed?.Invoke(content);
             this.Buffer = new byte[config.BufferSize];
             this.MessageFactory = new MessageFactory(config.CompressionThreshold);
             this.IsRegistered = false;

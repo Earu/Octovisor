@@ -161,16 +161,44 @@ namespace Octovisor.Client
             => this.Processes.ContainsKey(processName);
 
         /// <summary>
+        /// Checks whether the remote process with the specified name is available
+        /// </summary>
+        /// <param name="processName">The name of the remote process to check for</param>
+        /// <returns>Is the remote proces available</returns>
+        public bool IsProcessAvailable(string processName)
+            => this.Processes.ContainsKey(processName);
+
+        /// <summary>
         /// Gets an object representing a remote process
         /// </summary>
         /// <param name="processName">The name of the remote process</param>
         /// <returns>The object representing the remote process</returns>
         public RemoteProcess GetProcess(string processName)
         {
-            if (this.Processes.ContainsKey(processName))
+            if (this.IsProcessAvailable(processName))
                 return this.Processes[processName];
             else
                 throw new UnknownRemoteProcessException(processName);
+        }
+
+        /// <summary>
+        /// Tries to get an object representing a remote process
+        /// </summary>
+        /// <param name="processName">The name of the remote process</param>
+        /// <param name="remoteProcess">The object representing the remote process</param>
+        /// <returns>Was getting the process object successful</returns>
+        public bool TryGetProcess(string processName, out RemoteProcess remoteProcess)
+        {
+            if (this.IsProcessAvailable(processName))
+            {
+                remoteProcess = this.Processes[processName];
+                return true;
+            }
+            else
+            {
+                remoteProcess = null;
+                return false;
+            }
         }
 
         internal async Task<T> HandleTransmissionResultAsync<T>(int id)

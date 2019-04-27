@@ -1,11 +1,15 @@
 ﻿using ICSharpCode.AvalonEdit.Highlighting;
 using ICSharpCode.AvalonEdit.Highlighting.Xshd;
+using Microsoft.CodeAnalysis.CSharp.Scripting;
+using Microsoft.CodeAnalysis.Scripting;
+using Microsoft.Win32;
 using Octovisor.Client;
 using Octovisor.Debugger.Popups;
 using System;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
@@ -31,13 +35,21 @@ namespace Octovisor.Debugger.Windows
             this.Client.Log += this.PrintLine;
             this.Client.ProcessEnded += this.OnProcessTerminated;
             this.Client.ProcessRegistered += this.OnProcessRegistered;
-            this.Client.MessageParsed += this.PrintLine;
 
             if (File.Exists("Resources/syntax_highlight.xshd"))
             {
                 using (XmlTextReader reader = new XmlTextReader(File.OpenRead("Resources/syntax_highlight.xshd")))
                     this.Editor.SyntaxHighlighting = HighlightingLoader.Load(reader, HighlightingManager.Instance);
             }
+
+            this.Editor.Text = @"/* Use the 'Client' variable to interact with 
+* the debugger octovisor client.
+*
+* Use the 'Print' method to output objects and 
+* values in the debugger console. 
+*/
+
+// Your code here...";
         }
 
         public ObservableCollection<string> Processes { get; private set; }
@@ -93,17 +105,41 @@ namespace Octovisor.Debugger.Windows
         }
 
         private static readonly object Locker = new object();
-        private void PrintLine(string input)
+        public void PrintLine(string input)
         {
             lock(Locker)
             {
-                TextRange trTime = new TextRange(this.RTBConsole.Document.ContentEnd, this.RTBConsole.Document.ContentEnd);
-                trTime.Text = this.FormattedTime();
+                TextRange trTime = new TextRange(this.RTBConsole.Document.ContentEnd, this.RTBConsole.Document.ContentEnd)
+                {
+                    Text = this.FormattedTime()
+                };
                 trTime.ApplyPropertyValue(TextElement.ForegroundProperty, Brushes.Coral);
 
-                TextRange trOutput = new TextRange(this.RTBConsole.Document.ContentEnd, this.RTBConsole.Document.ContentEnd);
-                trOutput.Text = $" {input}\n".Replace("\t", new string(' ', 4));
+                TextRange trOutput = new TextRange(this.RTBConsole.Document.ContentEnd, this.RTBConsole.Document.ContentEnd)
+                {
+                    Text = $" {input}\n".Replace("\t", new string(' ', 4))
+                };
                 trOutput.ApplyPropertyValue(TextElement.ForegroundProperty, Brushes.White);
+
+                this.RTBConsole.ScrollToEnd();
+            }
+        }
+
+        public void PrintException(Exception ex)
+        {
+            lock (Locker)
+            {
+                TextRange trTime = new TextRange(this.RTBConsole.Document.ContentEnd, this.RTBConsole.Document.ContentEnd)
+                {
+                    Text = this.FormattedTime()
+                };
+                trTime.ApplyPropertyValue(TextElement.ForegroundProperty, Brushes.Coral);
+
+                TextRange trOutput = new TextRange(this.RTBConsole.Document.ContentEnd, this.RTBConsole.Document.ContentEnd)
+                {
+                    Text = $" {ex}\n"
+                };
+                trOutput.ApplyPropertyValue(TextElement.ForegroundProperty, Brushes.Red);
 
                 this.RTBConsole.ScrollToEnd();
             }
@@ -116,9 +152,36 @@ namespace Octovisor.Debugger.Windows
             this.PrintLine($"Connected processes ({this.Processes.Count}): {displayProcs}");
         }
 
-        private void OnEditorTextChanged(object sender, EventArgs e)
+        private async void OnRunCode(object sender, RoutedEventArgs e)
         {
+            ExecutionContext ctx = new ExecutionContext(this, this.Client);
+            try
+            {
+                ScriptState state = await CSharpScript.RunAsync(this.Editor.Text, ScriptOptions.Default, ctx);
+                if (state?.ReturnValue != null)
+                    ctx.Print(state?.ReturnValue);
+            }
+            catch(Exception ex)
+            {
+                ctx.Error(ex);
+            }
+        }
 
+        private void OnLoadScriptFile(object sender, RoutedEventArgs e)
+        {
+            OpenFileDialog fileDialog = new OpenFileDialog
+            {
+                Filter = "C# Source files (.cs)|*.cs",
+                FileName = "script",
+                DefaultExt = ".cs"
+            };
+
+            bool? result = fileDialog.ShowDialog();
+            if (result.HasValue && result.Value)
+            {
+                string code = File.ReadAllText(fileDialog.FileName);
+                this.Editor.Text = code;
+            }
         }
     }
 }
