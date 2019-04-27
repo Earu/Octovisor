@@ -104,7 +104,7 @@ namespace Octovisor.Messages
 
             Interlocked.Increment(ref this.CurrentMessageID);
             this.SetMessageErrorString(msg);
-            if (msg.Length >= this.CompressionTreshold) msg.CompressData();
+            if (msg.DataLength >= this.CompressionTreshold) msg.CompressData();
 
             return msg;
         }
@@ -123,7 +123,7 @@ namespace Octovisor.Messages
             };
 
             Interlocked.Increment(ref this.CurrentMessageID);
-            if (msg.Length >= this.CompressionTreshold) msg.CompressData();
+            if (msg.DataLength >= this.CompressionTreshold) msg.CompressData();
 
             return msg;
         }
@@ -142,7 +142,7 @@ namespace Octovisor.Messages
             };
 
             this.SetMessageErrorString(newMsg);
-            if (msg.Length >= this.CompressionTreshold) msg.CompressData();
+            if (msg.DataLength >= this.CompressionTreshold) msg.CompressData();
 
             return newMsg;
         }

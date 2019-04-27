@@ -17,9 +17,9 @@ namespace Octovisor.Messages
         }
 
         public static ProcessUpdateData Deserialize(string json)
-            => MessageSerializer.Deserialize<ProcessUpdateData>(json);
+            => MessageSerializer.DeserializeData<ProcessUpdateData>(json);
 
         public string Serialize()
-            => MessageSerializer.Serialize(this);
+            => MessageSerializer.SerializeData(this);
     }
 }

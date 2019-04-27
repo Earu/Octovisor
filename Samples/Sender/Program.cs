@@ -33,10 +33,10 @@ namespace Octovisor.Tests.Client
             };
 
             OctoClient client = new OctoClient(config);
+            client.Log += Console.WriteLine;
             await client.ConnectAsync();
 
             return client;
-
         }
 
         static async Task SpamRemoteProcessAsync(OctoClient client, string procName)
@@ -55,7 +55,11 @@ namespace Octovisor.Tests.Client
         {
             var client1 = await CreateClientAsync("Process1");
             //var client2 = await CreateClientAsync("Meta2");
-            SpamRemoteProcessAsync(client1, "Process2");
+            SpamRemoteProcessAsync(client1, "Process2").ContinueWith(t =>
+            {
+                if (t.IsFaulted)
+                    Console.WriteLine(t.Exception);
+            });
             //SpamRemoteProcessAsync(client2, "Process2");
 
             await Task.Delay(-1);
