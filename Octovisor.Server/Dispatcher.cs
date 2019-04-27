@@ -4,6 +4,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 
 namespace Octovisor.Server
 {
@@ -32,7 +33,7 @@ namespace Octovisor.Server
                     res.Add(new RemoteProcessData(state.Key));
             }
 
-            return MessageSerializer.Serialize(res);
+            return MessageSerializer.SerializeData(res);
         }
 
         internal async Task HandleMessageAsync(BaseClientState state, Message msg)
@@ -167,7 +168,7 @@ namespace Octovisor.Server
                     break;
                 case MessageType.Unknown:
                     tail = $"| (ID: {msg.Identifier}) {msg.OriginName} ?? {msg.TargetName}";
-                    this.Logger.Nice("Message", ConsoleColor.Yellow, $"Forwarded unknown message type {msg.Length} bytes {tail}");
+                    this.Logger.Nice("Message", ConsoleColor.Yellow, $"Forwarded unknown message type {msg.DataLength} bytes {tail}");
                     break;
             }
 
@@ -208,7 +209,7 @@ namespace Octovisor.Server
             }
             else if (this.States.ContainsKey(msg.OriginName) && !this.States.ContainsKey(msg.OriginName))
             {
-                this.Logger.Warning($"{msg.OriginName} tried to forward {msg.Length} bytes to unknown remote process {msg.TargetName}");
+                this.Logger.Warning($"{msg.OriginName} tried to forward {msg.DataLength} bytes to unknown remote process {msg.TargetName}");
                 await this.AnswerMessageAsync(state, msg, null, MessageStatus.ProcessNotFound);
             }
         }
