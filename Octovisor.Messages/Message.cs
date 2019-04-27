@@ -82,17 +82,14 @@ namespace Octovisor.Messages
 
         public void DecompressData()
         {
-            byte[] dataBytes = this.CompressedData;
+            using (GZipStream gzip = new GZipStream(new MemoryStream(this.CompressedData), CompressionMode.Decompress))
             using (MemoryStream memory = new MemoryStream())
             {
-                using (GZipStream gzip = new GZipStream(memory, CompressionMode.Decompress, true))
-                    gzip.Read(dataBytes, 0, dataBytes.Length);
+                gzip.CopyTo(memory);
 
                 this.Data = Encoding.UTF8.GetString(memory.ToArray());
-                Array.Clear(this.CompressedData, 0, this.CompressedData.Length);
+                this.CompressedData = new byte[0];
             }
-
-            this.IsCompressed = false;
         }
 
         public T GetData<T>()
@@ -142,16 +139,12 @@ namespace Octovisor.Messages
         public override string ToString()
         {
             return $@"Message [ 
-    ID: {this.ID}, 
-    Identifier: {this.Identifier}, 
-    Origin: {this.OriginName}, 
-    Target: {this.TargetName},
+    ID: {this.ID}, Identifier: {this.Identifier}, Origin: {this.OriginName}, Target: {this.TargetName},
     Data: {(string.IsNullOrWhiteSpace(this.Data) ? "none" : this.Data)},
+    CompressedData: {(this.CompressedData.Length > 0 ? string.Join(",", this.CompressedData) : "none")},
     Error: {(string.IsNullOrWhiteSpace(this.Error) ? "none" : this.Error)},
-    Type: {this.Type},
-    Status: {this.Status},
-    IsCompressed: {this.IsCompressed},
-            ]";
+    Type: {this.Type}, Status: {this.Status}, IsCompressed: {this.IsCompressed}
+]";
         }
     }
 }
