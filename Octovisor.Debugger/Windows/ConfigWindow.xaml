@@ -33,7 +33,7 @@
         <TextBox Style="{DynamicResource TextBox}" Name="TBTimeout" Width="110" Margin="20,210,260,0" VerticalAlignment="Top" Height="20" Text="5000" TextChanged="OnNumberOnlyTextChanged"/>
         <TextBlock Style="{DynamicResource TextBlock}" Text="Buffer Size:" Margin="143,189,0,0"/>
         <TextBox Style="{DynamicResource TextBox}" Name="TBBufferSize" Width="110" Margin="140,210,143,0" VerticalAlignment="Top" Height="20" Text="255" TextChanged="OnNumberOnlyTextChanged"/>
-        <TextBlock Style="{DynamicResource TextBlock}" Text="CPR Treshold:" Margin="263,189,0,0"/>
+        <TextBlock Style="{DynamicResource TextBlock}" Text="CPR Threshold:" Margin="263,189,0,0"/>
         <TextBox Style="{DynamicResource TextBox}" Name="TBCompressionTreshold" Width="110" Margin="260,210,20,0" VerticalAlignment="Top" Height="20" Text="300" TextChanged="OnNumberOnlyTextChanged"/>
         <Button Content="Load Config File" Click="OnConfigFileClick" Width="150" Height="30" Style="{DynamicResource BTNMenu}" Margin="35,250,205,10" />
         <Button Content="Connect" Click="OnConnect" Width="150" Height="30" Style="{DynamicResource BTNMenu}" Margin="202,250,38,10" />
