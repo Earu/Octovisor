@@ -11,11 +11,11 @@ Once you have the server running you want to use the octovisor client API (**Oct
 *NOTE: I DO NOT RECOMMEND USING OCTOVISOR IN PERFORMANCE CRITICAL AREAS AS IT RELIES ON NETWORK SPEED EVEN LOCALLY ([FOR NOW](https://github.com/Earu/Octovisor/projects/1#card-14947105)).*
 
 ### Example
-Here we have a process that calls itself "Process2", and that replies with the string "no u" everytime it receives a transmission with the identifier "meme".
+Here we have a process that calls itself "Process2", and that replies with the string "bar" everytime it receives a transmission with the identifier "foo".
 ```csharp
 Config config = new Config
 {
-    Token = "you're cool",
+    Token = "token",
     Address = "127.0.0.1",
     Port = 6558,
     ProcessName = "Process2",
@@ -23,14 +23,14 @@ Config config = new Config
 
 OctoClient client = new OctoClient(config);
 await client.ConnectAsync();
-client.OnTransmission<string, string>("meme", (proc, data) => "no u");
+client.OnTransmission<string, string>("foo", (proc, data) => "bar");
 ```
 
 This other process called "Process1" transmits long strings to our previous process and gets the appropriate answer.
 ```csharp
 Config config = new Config
 {
-    Token = "you're cool",
+    Token = "token",
     Address = "127.0.0.1",
     Port = 6558,
     ProcessName = "Process1",
@@ -42,18 +42,23 @@ if (client.TryGetProcess("Process2", out RemoteProcess proc))
 {
     for (int i = 0; i < 10; i++)
     {
-        string result = await proc.TransmitObjectAsync<string, string>("meme", new string('A', 10000));
+        string result = await proc.TransmitObjectAsync<string, string>("foo", new string('A', 10000));
         Console.WriteLine(result);
     }
 }
 ```
 output:
 ```
-no u
-no u
-no u
+bar
+bar
+bar
 etc...
 ```
+
+### Debugging
+Because its not always easy to work on process communication, Octovisor comes with a **debugger for windows users**. You can run your C# scripts at runtime to work with transmission handlers, or send arbitrary objects to other processes for example.
+
+<img src="https://i.imgur.com/JB1civU.gif" width="50%"/>
 
 ### Current state
 Currently Octovisor is still in its early development, I am always looking for help and feedback on my work, it helps me provide a quality experience, so if you believe you can help in any ways, please do.
