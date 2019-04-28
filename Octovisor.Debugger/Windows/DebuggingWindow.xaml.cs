@@ -6,9 +6,11 @@ using Microsoft.Win32;
 using Octovisor.Client;
 using Octovisor.Debugger.Popups;
 using System;
-using System.Collections.ObjectModel;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.NetworkInformation;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -30,17 +32,41 @@ namespace Octovisor.Debugger.Windows
         {
             this.InitializeComponent();
             this.Client = client;
-            this.Processes = new ObservableCollection<string>(client.AvailableProcesses.Select(proc => proc.Name));
+            this.Processes = new List<string>(client.AvailableProcesses.Select(proc => proc.Name));
             this.PrintInitDetails();
             this.Client.Log += this.PrintLine;
             this.Client.ProcessEnded += this.OnProcessTerminated;
             this.Client.ProcessRegistered += this.OnProcessRegistered;
+            this.Client.Connected += this.OnClientConnected;
+            this.Client.Registered += this.OnClientRegistered;
+            this.Client.Disconnected += this.OnClientDisconnected;
 
             if (File.Exists("Resources/syntax_highlight.xshd"))
             {
                 using (XmlTextReader reader = new XmlTextReader(File.OpenRead("Resources/syntax_highlight.xshd")))
                     this.Editor.SyntaxHighlighting = HighlightingLoader.Load(reader, HighlightingManager.Instance);
             }
+
+            this.ChangeConnectivityState("Registered", Brushes.Green);
+            this.ChangeProcessesCount(this.Client.AvailableProcessesCount);
+
+            Timer timer = new Timer(_ =>
+            {
+                try
+                {
+                    Ping ping = new Ping();
+                    PingReply reply = ping.Send(this.Client.ServerAddress);
+                    if (reply.Status == IPStatus.Success)
+                        this.ExecuteOnGraphicalThread(() => this.ChangeDelay(reply.RoundtripTime));
+                    else
+                        this.ExecuteOnGraphicalThread(() => this.ChangeDelay(-1));
+                }
+                catch
+                {
+                    this.ExecuteOnGraphicalThread(() => this.ChangeDelay(-1));
+                }
+            });
+            timer.Change(1000, 1000);
 
             this.Editor.Text = @"/* Use the 'Client' variable to interact with 
 * the debugger octovisor client.
@@ -52,18 +78,90 @@ namespace Octovisor.Debugger.Windows
 // Your code here...";
         }
 
-        public ObservableCollection<string> Processes { get; private set; }
+        public List<string> Processes { get; private set; }
+
+        private void ExecuteOnGraphicalThread(Action callback)
+            => Application.Current.Dispatcher.Invoke(callback);
+
+        private void ChangeConnectivityState(string state, Brush brush)
+        {
+            this.TBConnectivity.Text = state;
+            this.TBConnectivity.Foreground = brush;
+        }
+
+        private void ChangeDelay(long delay)
+        {
+            if (delay == -1)
+            { 
+                this.TBDelay.Text = "-";
+                return;
+            }
+
+            this.TBDelay.Text = $"{delay}ms";
+            if (delay < 80L)
+                this.TBDelay.Foreground = Brushes.Green;
+            else if (delay < 150L)
+                this.TBDelay.Foreground = Brushes.Yellow;
+            else
+                this.TBDelay.Foreground = Brushes.IndianRed;
+        }
+
+        private void ChangeProcessesCount(int count)
+        {
+            this.TBConnectedProcesses.Text = count.ToString();
+        }
+
+        private Task OnClientDisconnected()
+        {
+            this.ExecuteOnGraphicalThread(() =>
+            {
+                this.ChangeConnectivityState("Disconnected", Brushes.IndianRed);
+                this.ChangeProcessesCount(this.Client.AvailableProcessesCount);
+            });
+
+            return Task.CompletedTask;
+        }
+
+        private Task OnClientRegistered()
+        {
+            this.ExecuteOnGraphicalThread(() =>
+            {
+                this.ChangeConnectivityState("Connected", Brushes.Green);
+                this.ChangeProcessesCount(this.Client.AvailableProcessesCount);
+            });
+
+            return Task.CompletedTask;
+        }
+
+        private Task OnClientConnected()
+        {
+            this.ExecuteOnGraphicalThread(() =>
+            {
+                this.ChangeConnectivityState("Connected", Brushes.Green);
+                this.ChangeProcessesCount(this.Client.AvailableProcessesCount);
+            });
+
+            return Task.CompletedTask;
+        }
 
         private void OnProcessRegistered(RemoteProcess proc)
         {
-            this.Processes.Add(proc.Name);
-            this.PrintLine($"Registering new remote process \'{proc.Name}\'");
+            this.ExecuteOnGraphicalThread(() =>
+            {
+                this.Processes.Add(proc.Name);
+                this.PrintLine($"Registering new remote process \'{proc.Name}\'");
+                this.ChangeProcessesCount(this.Client.AvailableProcessesCount);
+            });
         }
 
         private void OnProcessTerminated(RemoteProcess proc)
         {
-            this.Processes.Remove(proc.Name);
-            this.PrintLine($"Terminating remote process \'{proc.Name}\'");
+            this.ExecuteOnGraphicalThread(() =>
+            {
+                this.Processes.Remove(proc.Name);
+                this.PrintLine($"Terminating remote process \'{proc.Name}\'");
+                this.ChangeProcessesCount(this.Client.AvailableProcessesCount);
+            });
         }
 
         private void OnMouseDrag(object sender, MouseButtonEventArgs e)
@@ -181,6 +279,36 @@ namespace Octovisor.Debugger.Windows
             {
                 string code = File.ReadAllText(fileDialog.FileName);
                 this.Editor.Text = code;
+            }
+        }
+
+        private void OnSaveScript(object sender, RoutedEventArgs e)
+        {
+            OpenFileDialog fileDialog = new OpenFileDialog
+            {
+                Filter = "C# Source files (.cs)|*.cs",
+                FileName = "script",
+                DefaultExt = ".cs"
+            };
+
+            bool? result = fileDialog.ShowDialog();
+            if (result.HasValue && result.Value)
+                File.WriteAllText(fileDialog.FileName, this.Editor.Text);
+        }
+
+        private async void OnDisconnect(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                await this.Client.DisconnectAsync();
+            }
+            catch(Exception ex)
+            {
+                ExceptionPopup.ShowException(ex);
+            }
+            finally
+            {
+                this.Close();
             }
         }
     }
