@@ -1,6 +1,6 @@
 <img src="https://repository-images.githubusercontent.com/153482218/d1d5d080-6958-11e9-9f11-853ea9be7e11" width="25%"/>
 
-Octovisor is a message service that allows you to **share objects and values easily between your different .NET applications**. It is composed of a message server that will run on its own and a client API that will let you communicate with other processes using that API on the same server.
+Octovisor is a message service that allows you to **share objects and values easily between your different applications**. It is composed of a message server that will run on its own and a client API that will let you communicate with other processes using that API on the same server.
 
 ### Usage
 Build the **Octovisor.Server project along with Octovisor.Messages** for your system, and make configuration file called config.yaml
@@ -59,4 +59,4 @@ etc...
 Currently Octovisor is still in its early development, I am always looking for help and feedback on my work, it helps me provide a quality experience, so if you believe you can help in any ways, please do.
 
 ### Future
-Once the .NET version is free of bugs and necessary improvements I might start writing other implementations of the client in other well-known languages to allow Octovisor to evolve through an extended eco-system.
+Once the .NET version is free of bugs and necessary improvements I might start writing other implementations of the client in other well-known languages, starting with **JavaScript** to allow Octovisor to evolve through an extended eco-system.
