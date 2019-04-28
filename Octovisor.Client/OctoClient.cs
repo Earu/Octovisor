@@ -40,6 +40,8 @@ namespace Octovisor.Client
         public OctoClient(Config config) : base(config)
         {
             this.ProcessName = config.ProcessName;
+            this.ServerAddress = config.Address;
+            this.ServerPort = config.Port;
             this.Processes = new Dictionary<string, RemoteProcess>();
             this.TransmissionHandlers = new Dictionary<string, Func<Message, string>>();
             this.TransmissionTCSs = new Dictionary<int, TaskCompletionSource<string>>();
@@ -49,6 +51,14 @@ namespace Octovisor.Client
             this.ProcessesInfoReceived += this.OnProcessesInfoReceived;
             this.MessageRequestReceived += this.OnMessageRequestReceived;
             this.MessageResponseReceived += this.OnMessageResponseReceived;
+            this.Disconnected += this.OnClientDisconnected;
+        }
+
+        private Task OnClientDisconnected()
+        {
+            this.Processes.Clear();
+
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -57,9 +67,24 @@ namespace Octovisor.Client
         public List<RemoteProcess> AvailableProcesses { get => this.Processes.Select(x => x.Value).ToList(); }
 
         /// <summary>
+        /// Gets the amount of available registered processes
+        /// </summary>
+        public int AvailableProcessesCount { get => this.Processes.Count; }
+
+        /// <summary>
         /// The name under which the client is registered on the Server
         /// </summary>
         public string ProcessName { get; private set; }
+
+        /// <summary>
+        /// The address of the Octovisor server this client is targetting
+        /// </summary>
+        public string ServerAddress { get; private set; }
+
+        /// <summary>
+        /// The port of the Octovisor server this client is targetting
+        /// </summary>
+        public int ServerPort { get; private set; }
 
         private void OnMessageResponseReceived(Message msg)
         {
