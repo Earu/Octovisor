@@ -46,11 +46,6 @@ namespace Octovisor.Client
         /// </summary>
         public event Func<Task> Disconnected;
 
-        /// <summary>
-        /// Fired whenever a message is going to be used by the client
-        /// </summary>
-        public event Action<string> MessageParsed;
-
         internal event Action<ProcessUpdateData, bool> ProcessUpdate;
         internal event Action<List<RemoteProcessData>> ProcessesInfoReceived;
         internal event Func<Message, string> MessageRequestReceived;

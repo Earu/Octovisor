@@ -94,6 +94,7 @@ namespace Octovisor.Debugger.Windows
             Button btn = (Button)sender;
             btn.IsHitTestVisible = false;
             btn.Background = Brushes.Gray;
+            DebuggingWindow win = null;
 
             try
             {
@@ -113,7 +114,7 @@ namespace Octovisor.Debugger.Windows
                 OctoClient client = new OctoClient(config);
                 await client.ConnectAsync();
 
-                DebuggingWindow win = new DebuggingWindow(client);
+                win = new DebuggingWindow(client);
                 win.ShowDialog();
 
                 // In case debugging window is closed with Windows
@@ -123,6 +124,7 @@ namespace Octovisor.Debugger.Windows
             catch(Exception ex)
             {
                 ExceptionPopup.ShowException(ex);
+                win?.Close();
             }
 
             btn.IsHitTestVisible = true;
