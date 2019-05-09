@@ -27,6 +27,7 @@ namespace Octovisor.Debugger.Windows
     public partial class DebuggingWindow : Window
     {
         private readonly OctoClient Client;
+        private readonly Timer PingTimer;
        
         public DebuggingWindow(OctoClient client)
         {
@@ -50,23 +51,23 @@ namespace Octovisor.Debugger.Windows
             this.ChangeConnectivityState("Registered", Brushes.Green);
             this.ChangeProcessesCount(this.Client.AvailableProcessesCount);
 
-            Timer timer = new Timer(_ =>
+            this.PingTimer = new Timer(_ =>
             {
                 try
                 {
                     Ping ping = new Ping();
                     PingReply reply = ping.Send(this.Client.ServerAddress);
                     if (reply.Status == IPStatus.Success)
-                        this.ExecuteOnGraphicalThread(() => this.ChangeDelay(reply.RoundtripTime));
+                        ExecuteOnGraphicalThread(() => this.ChangeDelay(reply.RoundtripTime));
                     else
-                        this.ExecuteOnGraphicalThread(() => this.ChangeDelay(-1));
+                        ExecuteOnGraphicalThread(() => this.ChangeDelay(-1));
                 }
                 catch
                 {
-                    this.ExecuteOnGraphicalThread(() => this.ChangeDelay(-1));
+                    ExecuteOnGraphicalThread(() => this.ChangeDelay(-1)); 
                 }
             });
-            timer.Change(1000, 1000);
+            this.PingTimer.Change(1000, 1000);
 
             this.Editor.Text = @"/* Use the 'Client' variable to interact with 
 * the debugger octovisor client.
@@ -80,7 +81,7 @@ namespace Octovisor.Debugger.Windows
 
         public List<string> Processes { get; private set; }
 
-        private void ExecuteOnGraphicalThread(Action callback)
+        private static void ExecuteOnGraphicalThread(Action callback)
             => Application.Current.Dispatcher.Invoke(callback);
 
         private void ChangeConnectivityState(string state, Brush brush)
@@ -113,7 +114,7 @@ namespace Octovisor.Debugger.Windows
 
         private Task OnClientDisconnected()
         {
-            this.ExecuteOnGraphicalThread(() =>
+            ExecuteOnGraphicalThread(() =>
             {
                 this.ChangeConnectivityState("Disconnected", Brushes.IndianRed);
                 this.ChangeProcessesCount(this.Client.AvailableProcessesCount);
@@ -124,7 +125,7 @@ namespace Octovisor.Debugger.Windows
 
         private Task OnClientRegistered()
         {
-            this.ExecuteOnGraphicalThread(() =>
+            ExecuteOnGraphicalThread(() =>
             {
                 this.ChangeConnectivityState("Connected", Brushes.Green);
                 this.ChangeProcessesCount(this.Client.AvailableProcessesCount);
@@ -135,7 +136,7 @@ namespace Octovisor.Debugger.Windows
 
         private Task OnClientConnected()
         {
-            this.ExecuteOnGraphicalThread(() =>
+            ExecuteOnGraphicalThread(() =>
             {
                 this.ChangeConnectivityState("Connected", Brushes.Green);
                 this.ChangeProcessesCount(this.Client.AvailableProcessesCount);
@@ -146,7 +147,7 @@ namespace Octovisor.Debugger.Windows
 
         private void OnProcessRegistered(RemoteProcess proc)
         {
-            this.ExecuteOnGraphicalThread(() =>
+            ExecuteOnGraphicalThread(() =>
             {
                 this.Processes.Add(proc.Name);
                 this.PrintLine($"Registering new remote process \'{proc.Name}\'");
@@ -156,7 +157,7 @@ namespace Octovisor.Debugger.Windows
 
         private void OnProcessTerminated(RemoteProcess proc)
         {
-            this.ExecuteOnGraphicalThread(() =>
+            ExecuteOnGraphicalThread(() =>
             {
                 this.Processes.Remove(proc.Name);
                 this.PrintLine($"Terminating remote process \'{proc.Name}\'");
@@ -171,6 +172,7 @@ namespace Octovisor.Debugger.Windows
         {
             try
             {
+                this.PingTimer.Dispose();
                 Button btn = (Button)sender;
                 btn.IsHitTestVisible = false;
                 btn.Background = Brushes.Gray;

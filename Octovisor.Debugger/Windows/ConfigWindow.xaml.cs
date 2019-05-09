@@ -114,17 +114,21 @@ namespace Octovisor.Debugger.Windows
                 OctoClient client = new OctoClient(config);
                 await client.ConnectAsync();
 
+                this.Visibility = Visibility.Collapsed;
                 win = new DebuggingWindow(client);
                 win.ShowDialog();
 
                 // In case debugging window is closed with Windows
                 if (client.IsRegistered)
                     await client.DisconnectAsync();
+
+                this.Visibility = Visibility.Visible;
             }
             catch(Exception ex)
             {
                 ExceptionPopup.ShowException(ex);
                 win?.Close();
+                this.Visibility = Visibility.Visible;
             }
 
             btn.IsHitTestVisible = true;
