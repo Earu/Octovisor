@@ -8,7 +8,6 @@
         mc:Ignorable="d"
         WindowStyle="None"
 		WindowStartupLocation="CenterScreen"
-		ResizeMode="NoResize"
         AllowsTransparency="True"
         MinWidth="800" MinHeight="450"
         Title="Octovisor Debugger" Height="450" Width="800">
@@ -24,26 +23,48 @@
         <Button HorizontalAlignment="Right" VerticalAlignment="Top" Padding="0,-12,0,0" FontSize="25" Width="30" Content="□" Click="OnMaximize" Style="{DynamicResource BTNMinMax}" Margin="0,0,30,0"/>
         <Button HorizontalAlignment="Right" VerticalAlignment="Top" Padding="0,-19,0,0" FontSize="25" Width="30" Content="_" Click="OnMinimize" Style="{DynamicResource BTNMinMax}" Margin="0,0,60,0"/>
         <Button HorizontalAlignment="Right" VerticalAlignment="Top" Width="30" Click="OnClose" Style="{DynamicResource BTNClose}"/>
-        <RichTextBox Name="RTBConsole" IsReadOnly="True" HorizontalAlignment="Left" Foreground="White" Background="Black" BorderBrush="#191919" Height="137" Width="518" Margin="10,293,0,0" VerticalAlignment="Top">
-            <RichTextBox.Resources>
-                <Style TargetType="{x:Type Paragraph}">
-                    <Setter Property="Margin" Value="0"/>
-                </Style>
-            </RichTextBox.Resources>
-        </RichTextBox>
-        <avalonEdit:TextEditor Foreground="#dddddd" Background="#191919" BorderThickness="1" BorderBrush="#292929" Name="Editor" SyntaxHighlighting="C#" FontFamily="Consolas" FontSize="10pt" Margin="10,25,10,187">
-            <avalonEdit:TextEditor.HorizontalScrollBarVisibility>Hidden</avalonEdit:TextEditor.HorizontalScrollBarVisibility>
-            <avalonEdit:TextEditor.VerticalScrollBarVisibility>Hidden</avalonEdit:TextEditor.VerticalScrollBarVisibility>
-        </avalonEdit:TextEditor>
-        <Button Content="Run Code" Click="OnRunCode" Width="130" Height="30" Style="{DynamicResource BTNMenu}" Margin="10,258,650,152" />
-        <Button Content="Load Script File" Click="OnLoadScriptFile" Width="130" Height="30" Style="{DynamicResource BTNMenu}" Margin="145,258,515,152" />
-        <Button Content="Save Script" Click="OnSaveScript" Width="130" Height="30" Style="{DynamicResource BTNMenu}" Margin="280,258,380,152" />
-        <TextBlock Text="Connectivity:" Foreground="White" Width="120" Height="20" Margin="575,293,95,127"/>
-        <TextBlock Name="TBConnectivity" Text="Offline" Foreground="White" Width="80" Height="20" Margin="700,293,10,127"/>
-        <TextBlock Text="Delay:" Foreground="White" Width="120" Height="20" Margin="575,318,95,102"/>
-        <TextBlock Name="TBDelay" Text="0ms" Foreground="White" Width="80" Height="20" Margin="700,318,10,102" RenderTransformOrigin="0.295,0.492"/>
-        <TextBlock Text="Connected Processes:" Foreground="White" Width="120" Height="20" Margin="575,343,95,77"/>
-        <TextBlock Name="TBConnectedProcesses" Text="0" Foreground="White" Width="80" Height="20" Margin="700,343,10,77"/>
-        <Button Content="Disconnect" Click="OnDisconnect" BorderBrush="#292929" BorderThickness="2" FontWeight="Normal" Width="160" Height="30" Style="{DynamicResource BTNClose}" Margin="600,400,30,10" />
+        <Grid Margin="0,20,0,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="9*"/>
+                <RowDefinition Height="30"/>
+                <RowDefinition Height="4*"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1*"/>
+                <ColumnDefinition Width="1*"/>
+                <ColumnDefinition Width="1*"/>
+                <ColumnDefinition Width="1*"/>
+                <ColumnDefinition Width="1*"/>
+                <ColumnDefinition Width="1*"/>
+            </Grid.ColumnDefinitions>
+            <avalonEdit:TextEditor Foreground="#dddddd" Background="#191919" BorderThickness="1" BorderBrush="#292929" Name="Editor" SyntaxHighlighting="C#" Margin="5" FontFamily="Consolas" FontSize="10pt" Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="6">
+                <avalonEdit:TextEditor.HorizontalScrollBarVisibility>Hidden</avalonEdit:TextEditor.HorizontalScrollBarVisibility>
+                <avalonEdit:TextEditor.VerticalScrollBarVisibility>Hidden</avalonEdit:TextEditor.VerticalScrollBarVisibility>
+            </avalonEdit:TextEditor>
+            <StackPanel Orientation="Horizontal" Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="4">
+                <Button Content="Run Code" Click="OnRunCode" Margin="5,0,5,0" Width="120" Style="{DynamicResource BTNMenu}"/>
+                <Button Content="Load Script File" Click="OnLoadScriptFile" Margin="5,0,5,0" Width="120"  Style="{DynamicResource BTNMenu}"/>
+                <Button Content="Save Script" Click="OnSaveScript" Margin="5,0,5,0" Width="120"  Style="{DynamicResource BTNMenu}"/>
+            </StackPanel>
+
+            <RichTextBox Name="RTBConsole" IsReadOnly="True" HorizontalAlignment="Left" Foreground="White" Background="Black" BorderBrush="#191919" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="4" Margin="5">
+                <RichTextBox.Resources>
+                    <Style TargetType="{x:Type Paragraph}">
+                        <Setter Property="Margin" Value="0"/>
+                    </Style>
+                </RichTextBox.Resources>
+            </RichTextBox>
+            <StackPanel Grid.Column="4" Grid.Row="2">
+                <TextBlock Text="Connectivity:" Foreground="White" Height="20" VerticalAlignment="Top" Margin="5,0,0,5"/>
+                <TextBlock Text="Delay:" Foreground="White" Height="20" VerticalAlignment="Top" Margin="5,0,0,5"/>
+                <TextBlock Text="Connected Processes:" Foreground="White" Height="20" VerticalAlignment="Top" Margin="5,0,0,5"/>
+            </StackPanel>
+            <StackPanel Grid.Column="5" Grid.Row="2">
+                <TextBlock Name="TBConnectivity" Text="Offline" Foreground="White" Height="20" VerticalAlignment="Top" Margin="0,0,0,5"/>
+                <TextBlock Name="TBDelay" Text="0ms" Foreground="White" Height="20" VerticalAlignment="Top" Margin="0,0,0,5"/>
+                <TextBlock Name="TBConnectedProcesses" Text="0" Foreground="White" Height="20" VerticalAlignment="Top" Margin="0,0,0,5"/>
+            </StackPanel>
+            <Button Content="Disconnect" Click="OnDisconnect" BorderBrush="#292929" BorderThickness="2" FontWeight="Normal" Width="160" Height="30" Style="{DynamicResource BTNClose}" Grid.Column="4" Grid.ColumnSpan="2" Grid.Row="2" VerticalAlignment="Top" Margin="0,80,0,0"/>
+        </Grid>
     </Grid>
 </Window>

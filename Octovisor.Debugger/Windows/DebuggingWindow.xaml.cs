@@ -284,7 +284,7 @@ namespace Octovisor.Debugger.Windows
 
         private void OnSaveScript(object sender, RoutedEventArgs e)
         {
-            OpenFileDialog fileDialog = new OpenFileDialog
+            SaveFileDialog fileDialog = new SaveFileDialog
             {
                 Filter = "C# Source files (.cs)|*.cs",
                 FileName = "script",
