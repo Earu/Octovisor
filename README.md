@@ -1,3 +1,5 @@
+[![Build status](https://ci.appveyor.com/api/projects/status/7c041re9phx9iuuq?svg=true)](https://ci.appveyor.com/project/Earu/octovisor)
+
 <img src="https://repository-images.githubusercontent.com/153482218/02279580-6b38-11e9-957e-6747a4d5deba" width="25%"/>
 
 Octovisor is a message service that allows you to **share objects and values easily between your different applications**. It is composed of a message server that will run on its own and a client API that will let you communicate with other processes using that API on the same server.
