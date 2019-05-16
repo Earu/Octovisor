@@ -20,7 +20,7 @@ namespace Octovisor.Client
         private NetworkStream Stream;
 
         private readonly byte[] Buffer;
-        private readonly Config Config;
+        private readonly OctoConfig Config;
         private readonly MessageReader Reader;
         private volatile TaskCompletionSource<bool> RegisterTCS;
         private volatile TaskCompletionSource<bool> UnregisterTCS;
@@ -51,15 +51,9 @@ namespace Octovisor.Client
         internal event Func<Message, string> MessageRequestReceived;
         internal event Action<Message> MessageResponseReceived;
        
-        /// <summary>
-        /// Gets whether or not this instance is connected 
-        /// </summary>
-        public bool IsConnected { get; private set; }
+        internal bool IsConnectedInternal { get; private set; }
 
-        /// <summary>
-        /// Gets whether or not this instance is registered
-        /// </summary>
-        public bool IsRegistered { get; private set; }
+        internal bool IsRegistered { get; private set; }
 
         internal MessageFactory MessageFactory { get; private set; }
 
@@ -67,7 +61,7 @@ namespace Octovisor.Client
         /// Creates a new instance of OctovisorClient
         /// </summary>
         /// <param name="config">A config object containing your token and other settings</param>
-        public BaseClient(Config config)
+        public BaseClient(OctoConfig config)
         {
             if (!config.IsValid())
                 throw new Exception("Invalid Octovisor client configuration");
@@ -77,7 +71,7 @@ namespace Octovisor.Client
             this.Buffer = new byte[config.BufferSize];
             this.MessageFactory = new MessageFactory(config.CompressionThreshold);
             this.IsRegistered = false;
-            this.IsConnected = false;
+            this.IsConnectedInternal = false;
         }
 
         private void LogEvent(string log) => this.Log?.Invoke(log);
@@ -87,12 +81,12 @@ namespace Octovisor.Client
         /// </summary>
         public async Task ConnectAsync()
         {
-            if (this.IsConnected)
+            if (this.IsConnectedInternal)
                 throw new AlreadyConnectedException();
 
             this.Client = new TcpClient();
             await this.Client.ConnectAsync(this.Config.Address, this.Config.Port);
-            this.IsConnected = true;
+            this.IsConnectedInternal = true;
             this.Stream = this.Client.GetStream();
             if (this.Connected != null)
                 await this.Connected.Invoke();
@@ -108,13 +102,13 @@ namespace Octovisor.Client
         /// </summary>
         public async Task DisconnectAsync()
         {
-            if (!this.IsConnected)
+            if (!this.IsConnectedInternal)
                 throw new UnconnectedException();
 
             if (this.Client.Connected) // socket connected
                 await this.UnregisterAsync();
 
-            this.IsConnected = false;
+            this.IsConnectedInternal = false;
             await this.ReceivingTask;
 
             this.Stream.Dispose();
@@ -212,7 +206,7 @@ namespace Octovisor.Client
             NetworkStream stream = this.Stream;
             try
             {
-                while (this.IsConnected)
+                while (this.IsConnectedInternal)
                 {
                     int bytesread = await stream.ReadAsync(this.Buffer, 0, this.Config.BufferSize);
                     if (bytesread <= 0) continue;
@@ -285,7 +279,7 @@ namespace Octovisor.Client
 
         internal async Task SendAsync(Message msg)
         {
-            if (!this.IsConnected)
+            if (!this.IsConnectedInternal)
                 throw new UnconnectedException();
 
             string data = msg.Serialize() + this.Config.MessageFinalizer;

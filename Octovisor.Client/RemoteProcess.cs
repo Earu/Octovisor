@@ -24,7 +24,7 @@ namespace Octovisor.Client
 
         private void ValidateClientState()
         {
-            if (!this.Client.IsConnected)
+            if (!this.Client.IsConnectedInternal)
                 throw new UnconnectedException();
 
             if (!this.Client.IsRegistered)
@@ -41,6 +41,30 @@ namespace Octovisor.Client
         {
             this.ValidateClientState();
             this.ValidateIdentifier(identifier);
+        }
+
+        /// <summary>
+        /// Transmits an identifier on its own with no additional passed data to the remote process
+        /// </summary>
+        /// <typeparam name="T">The type of the object/value we are expecting to receive</typeparam>
+        /// <param name="identifier">The identifier to transmit</param>
+        /// <returns>An instance of the expected object/value type</returns>
+        public async Task<T> TransmitAsync<T>(string identifier)
+        {
+            this.ValidateTransmission(identifier);
+
+            return await this.Client.TransmitObjectAsync<object, T>(identifier, this.Name, null);
+        }
+
+        /// <summary>
+        /// Transmits an identifier on its own with no additional passed data to the remote process
+        /// </summary>
+        /// <param name="identifier">The identifier to transmit</param>
+        public async Task TransmitAsync(string identifier)
+        {
+            this.ValidateTransmission(identifier);
+
+            await this.Client.TransmitObjectAsync<object>(identifier, this.Name, null);
         }
 
         /// <summary>

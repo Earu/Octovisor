@@ -20,7 +20,7 @@ namespace Octovisor.Tests.Client2
 
         static async Task MainAsync()
         {
-            Config config = new Config
+            OctoConfig config = new OctoConfig
             {
                 Token = "you're cool",
                 Address = "127.0.0.1",
@@ -43,12 +43,12 @@ namespace Octovisor.Tests.Client2
             foreach (RemoteProcess proc in client.AvailableProcesses)
                 Console.WriteLine(proc.Name);
 
-            client.OnTransmission<TestClass, string>("meme", (proc, data) =>
+            /*client.OnTransmission<TestClass, string>("meme", (proc, data) =>
             {
                 Console.WriteLine($"{proc.Name}: {(data is null ? "null" : data.ToString())}");
 
                 return "hello world";
-            });
+            });*/
 
             await Task.Delay(-1);
         }
