@@ -6,11 +6,11 @@ namespace Octovisor.Client
     /// <summary>
     /// The Octovisor configuration to be used with the OctoClient
     /// </summary>
-    public class Config
+    public class OctoConfig
     {
         private string _ProcessName;
 
-        public Config()
+        public OctoConfig()
         {
             this.Token = string.Empty;
             this._ProcessName = string.Empty;
@@ -92,7 +92,7 @@ namespace Octovisor.Client
         /// </summary>
         /// <param name="path">The path to the yaml config file</param>
         /// <returns>A config object</returns>
-        public static Config FromFile(string path)
+        public static OctoConfig FromFile(string path)
         {
             if (!File.Exists(path))
                 throw new FileNotFoundException();
@@ -105,7 +105,7 @@ namespace Octovisor.Client
             {
                 string yaml = reader.ReadToEnd();
                 Deserializer deserializer = new Deserializer();
-                return deserializer.Deserialize<Config>(yaml);
+                return deserializer.Deserialize<OctoConfig>(yaml);
             }
         }
     }

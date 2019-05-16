@@ -35,7 +35,7 @@ namespace Octovisor.Debugger.Windows
 
             try
             {
-                Config config = Config.FromFile("last_config.yaml");
+                OctoConfig config = OctoConfig.FromFile("last_config.yaml");
                 this.TBAddress.Text = config.Address;
                 this.TBPort.Text = config.Port.ToString();
                 this.TBProcessName.Text = config.ProcessName;
@@ -50,7 +50,7 @@ namespace Octovisor.Debugger.Windows
             }
         }
 
-        private void SaveConfig(Config config)
+        private void SaveConfig(OctoConfig config)
         {
             Serializer serializer = new Serializer();
             string yaml = serializer.Serialize(config);
@@ -71,7 +71,7 @@ namespace Octovisor.Debugger.Windows
             {
                 try
                 {
-                    Config config = Config.FromFile(fileDialog.FileName);
+                    OctoConfig config = OctoConfig.FromFile(fileDialog.FileName);
                     this.SaveConfig(config);
 
                     this.TBAddress.Text = config.Address;
@@ -98,7 +98,7 @@ namespace Octovisor.Debugger.Windows
 
             try
             {
-                Config config = new Config
+                OctoConfig config = new OctoConfig
                 {
                     Address = this.TBAddress.Text,
                     Port = int.Parse(this.TBPort.Text),
@@ -119,7 +119,7 @@ namespace Octovisor.Debugger.Windows
                 win.ShowDialog();
 
                 // In case debugging window is closed with Windows
-                if (client.IsRegistered)
+                if (client.IsConnected)
                     await client.DisconnectAsync();
 
                 this.Visibility = Visibility.Visible;

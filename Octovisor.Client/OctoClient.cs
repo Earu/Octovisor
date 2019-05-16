@@ -37,7 +37,7 @@ namespace Octovisor.Client
         /// Instanciates a new OctoClient based on the config object passsed
         /// </summary>
         /// <param name="config">The config object</param>
-        public OctoClient(Config config) : base(config)
+        public OctoClient(OctoConfig config) : base(config)
         {
             this.ProcessName = config.ProcessName;
             this.ServerAddress = config.Address;
@@ -60,6 +60,11 @@ namespace Octovisor.Client
 
             return Task.CompletedTask;
         }
+
+        /// <summary>
+        /// Gets whether or not this client instance is connected to the Octovisor server
+        /// </summary>
+        public bool IsConnected { get => this.IsConnectedInternal; }
 
         /// <summary>
         /// Gets the list of all currently available processes
@@ -179,6 +184,43 @@ namespace Octovisor.Client
         }
 
         /// <summary>
+        /// Registers an event handler that will be fired whenever the transmission for the specified identifier is received
+        /// </summary>
+        /// <param name="identifier">The transmission identifier</param>
+        /// <param name="handler">The handler to be called when receiving a transmission</param>
+        public void OnTransmission(string identifier, Action<RemoteProcess> handler)
+        {
+            if (this.TransmissionHandlers.ContainsKey(identifier))
+                throw new NonUniqueIdentifierException(identifier);
+
+            this.TransmissionHandlers.Add(identifier, msg =>
+            {
+                RemoteProcess proc = this.GetProcess(msg.OriginName);
+                handler(proc);
+
+                return null;
+            });
+        }
+
+        /// <summary>
+        /// Registers an event handler that will be fired whenever the transmission for the specified identifier is received
+        /// </summary>
+        /// <param name="identifier">The transmission identifier</param>
+        /// <param name="handler">The handler to be called when receiving a transmission</param>
+        public void OnTransmission(string identifier, Action handler)
+        {
+            if (this.TransmissionHandlers.ContainsKey(identifier))
+                throw new NonUniqueIdentifierException(identifier);
+
+            this.TransmissionHandlers.Add(identifier, _ =>
+            {
+                handler();
+
+                return null;
+            });
+        }
+
+        /// <summary>
         /// Gets whether the specified name corresponds to a valid remote process or not
         /// </summary>
         /// <param name="processName">The name of the remote process to check for</param>
@@ -240,7 +282,7 @@ namespace Octovisor.Client
             string result = await tcs.Task;
             this.TransmissionTCSs.Remove(id);
 
-            return MessageSerializer.DeserializeData<T>(result);
+            return result == null ? default(T) : MessageSerializer.DeserializeData<T>(result);
         }
 
         internal async Task<TResult> TransmitObjectAsync<T, TResult>(string identifier, string target, T obj) where T : class
