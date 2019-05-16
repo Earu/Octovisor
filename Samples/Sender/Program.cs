@@ -24,7 +24,7 @@ namespace Octovisor.Tests.Client
 
         static async Task<OctoClient> CreateClientAsync(string procName)
         {
-            Config config = new Config
+            OctoConfig config = new OctoConfig
             {
                 Token = "you're cool",
                 Address = "127.0.0.1",
