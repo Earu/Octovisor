@@ -35,7 +35,7 @@ namespace Octovisor.Debugger.Windows
             this.Client = client;
             this.Processes = new List<string>(client.AvailableProcesses.Select(proc => proc.Name));
             this.PrintInitDetails();
-            this.Client.Log += this.PrintLine;
+            this.Client.Log += log => this.PrintLine(log.Content);
             this.Client.ProcessEnded += this.OnProcessTerminated;
             this.Client.ProcessRegistered += this.OnProcessRegistered;
             this.Client.Connected += this.OnClientConnected;

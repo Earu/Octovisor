@@ -26,14 +26,14 @@ namespace Octovisor.Tests.Client
         {
             OctoConfig config = new OctoConfig
             {
-                Token = "you're cool",
-                Address = "127.0.0.1",
+                Token = "cool",
+                Address = "localhost",
                 Port = 6558,
                 ProcessName = procName,
             };
 
             OctoClient client = new OctoClient(config);
-            client.Log += Console.WriteLine;
+            client.Log += log => Console.WriteLine($"{log.Severity} >> {log.Content}");
             await client.ConnectAsync();
 
             return client;
