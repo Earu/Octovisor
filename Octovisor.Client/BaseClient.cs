@@ -241,10 +241,11 @@ namespace Octovisor.Client
         private async Task RegisterAsync()
         {
             this.RegisterTCS = new TaskCompletionSource<bool>();
+            Task<bool> t = this.WaitInternalResponseAsync(this.RegisterTCS); 
             await this.SendAsync(this.MessageFactory.CreateClientRegisterMessage(this.Config.ProcessName, this.Config.Token));
             this.LogEvent(LogSeverity.Info, "Registering on server");
 
-            bool accepted = await this.WaitInternalResponseAsync(this.RegisterTCS);
+            bool accepted = await t;
             this.RegisterTCS = null;
 
             if (accepted)
@@ -256,10 +257,11 @@ namespace Octovisor.Client
         private async Task UnregisterAsync()
         {
             this.UnregisterTCS = new TaskCompletionSource<bool>();
+            Task<bool> t = this.WaitInternalResponseAsync(this.UnregisterTCS);
             await this.SendAsync(this.MessageFactory.CreateClientUnregisterMessage(this.Config.ProcessName, this.Config.Token));
             this.LogEvent(LogSeverity.Info, "Ending on server");
 
-            bool accepted = await this.WaitInternalResponseAsync(this.UnregisterTCS);
+            bool accepted = await t;
             this.UnregisterTCS = null;
 
             if (accepted)
@@ -267,12 +269,13 @@ namespace Octovisor.Client
         }
 
         private async Task RequestProcessesInfoAsync()
-        {
+        { 
             this.RequestProcessesInfoTCS = new TaskCompletionSource<List<RemoteProcessData>>();
+            Task<List<RemoteProcessData>> t = this.WaitInternalResponseAsync(this.RequestProcessesInfoTCS);
             await this.SendAsync(this.MessageFactory.CreateClientRequestProcessesInfoMessage(this.Config.ProcessName));
             this.LogEvent(LogSeverity.Info, "Requesting available processes information");
 
-            List<RemoteProcessData> data = await this.WaitInternalResponseAsync(this.RequestProcessesInfoTCS);
+            List<RemoteProcessData> data = await t;
             this.RequestProcessesInfoTCS = null;
 
             this.ProcessesInfoReceived?.Invoke(data);

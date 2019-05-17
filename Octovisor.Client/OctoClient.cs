@@ -276,7 +276,7 @@ namespace Octovisor.Client
             {
                 if (!tcs.Task.IsCompleted)
                     tcs.SetException(new TimeOutException());
-            }, false);
+            });
 
             this.TransmissionTCSs.Add(id, tcs);
             string result = await tcs.Task;
@@ -289,9 +289,10 @@ namespace Octovisor.Client
         {
             string payload = MessageSerializer.SerializeData(obj);
             Message msg = this.MessageFactory.CreateMessageRequest(identifier, this.ProcessName, target, payload);
+            Task<TResult> t = this.HandleTransmissionResultAsync<TResult>(msg.ID);
             await this.SendAsync(msg);
 
-            return await this.HandleTransmissionResultAsync<TResult>(msg.ID);
+            return await t;
         }
 
         internal async Task TransmitObjectAsync<T>(string identifier, string target, T obj) where T : class
@@ -305,9 +306,10 @@ namespace Octovisor.Client
         {
             string data = value.ToString();
             Message msg = this.MessageFactory.CreateMessageRequest(identifier, this.ProcessName, target, data);
+            Task<TResult> t = this.HandleTransmissionResultAsync<TResult>(msg.ID);
             await this.SendAsync(msg);
 
-            return await this.HandleTransmissionResultAsync<TResult>(msg.ID);
+            return await t;
         }
 
         internal async Task TransmitValueAsync<T>(string identifier, string target, T value) where T : struct
@@ -343,6 +345,19 @@ namespace Octovisor.Client
             List<Task> tasks = new List<Task>();
             foreach (KeyValuePair<string, RemoteProcess> proc in this.Processes)
                 tasks.Add(this.TransmitValueAsync(identifier, proc.Key, value));
+
+            await Task.WhenAll(tasks);
+        }
+
+        /// <summary>
+        /// Transmits an identifier to every available remote process
+        /// </summary>
+        /// <param name="identifier">The identifier to use</param>
+        public async Task BroadcastAsync(string identifier)
+        {
+            List<Task> tasks = new List<Task>();
+            foreach (KeyValuePair<string, RemoteProcess> proc in this.Processes)
+                tasks.Add(this.TransmitObjectAsync<object>(identifier, proc.Key, null));
 
             await Task.WhenAll(tasks);
         }
