@@ -26,6 +26,7 @@ namespace Octovisor.Server
             return true;
         }
 
+        [YamlIgnore]
         public static Config Instance { get; private set; }
 
         public static void Initialize(string path)

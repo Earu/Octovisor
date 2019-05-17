@@ -29,7 +29,7 @@ namespace Octovisor.Client
         /// <summary>
         /// Fired when something is logged
         /// </summary>
-        public event Action<string> Log;
+        public event Action<LogMessage> Log;
 
         /// <summary>
         /// Fired when the client is connected to the remote server
@@ -61,7 +61,7 @@ namespace Octovisor.Client
         /// Creates a new instance of OctovisorClient
         /// </summary>
         /// <param name="config">A config object containing your token and other settings</param>
-        public BaseClient(OctoConfig config)
+        protected BaseClient(OctoConfig config)
         {
             if (!config.IsValid())
                 throw new Exception("Invalid Octovisor client configuration");
@@ -74,7 +74,8 @@ namespace Octovisor.Client
             this.IsConnectedInternal = false;
         }
 
-        private void LogEvent(string log) => this.Log?.Invoke(log);
+        private void LogEvent(LogSeverity severity, string log) 
+            => this.Log?.Invoke(new LogMessage(severity, log));
 
         /// <summary>
         /// Connects asynchronously to the Octovisor server
@@ -194,7 +195,7 @@ namespace Octovisor.Client
                             break;
                         case MessageType.Unknown:
                         default:
-                            this.LogEvent($"Received unknown message type\n{msg.Data}");
+                            this.LogEvent(LogSeverity.Warn, $"Received unknown message type\n{msg.Data}");
                             break;
                     }
                     break;
@@ -232,7 +233,7 @@ namespace Octovisor.Client
             {
                 if (!tcs.Task.IsCompleted)
                     tcs.SetException(new TimeOutException());
-            }, true);
+            });
 
             return await tcs.Task;
         }
@@ -241,7 +242,7 @@ namespace Octovisor.Client
         {
             this.RegisterTCS = new TaskCompletionSource<bool>();
             await this.SendAsync(this.MessageFactory.CreateClientRegisterMessage(this.Config.ProcessName, this.Config.Token));
-            this.LogEvent("Registering on server");
+            this.LogEvent(LogSeverity.Info, "Registering on server");
 
             bool accepted = await this.WaitInternalResponseAsync(this.RegisterTCS);
             this.RegisterTCS = null;
@@ -256,7 +257,7 @@ namespace Octovisor.Client
         {
             this.UnregisterTCS = new TaskCompletionSource<bool>();
             await this.SendAsync(this.MessageFactory.CreateClientUnregisterMessage(this.Config.ProcessName, this.Config.Token));
-            this.LogEvent("Ending on server");
+            this.LogEvent(LogSeverity.Info, "Ending on server");
 
             bool accepted = await this.WaitInternalResponseAsync(this.UnregisterTCS);
             this.UnregisterTCS = null;
@@ -269,7 +270,7 @@ namespace Octovisor.Client
         {
             this.RequestProcessesInfoTCS = new TaskCompletionSource<List<RemoteProcessData>>();
             await this.SendAsync(this.MessageFactory.CreateClientRequestProcessesInfoMessage(this.Config.ProcessName));
-            this.LogEvent("Requesting available processes information");
+            this.LogEvent(LogSeverity.Info, "Requesting available processes information");
 
             List<RemoteProcessData> data = await this.WaitInternalResponseAsync(this.RequestProcessesInfoTCS);
             this.RequestProcessesInfoTCS = null;
@@ -285,7 +286,7 @@ namespace Octovisor.Client
             string data = msg.Serialize() + this.Config.MessageFinalizer;
             byte[] bytedata = Encoding.UTF8.GetBytes(data);
 
-            this.LogEvent($"Sending {data.Length} bytes");
+            this.LogEvent(LogSeverity.Debug, $"Sending {data.Length} bytes");
             NetworkStream stream = this.Stream;
             await stream.WriteAsync(bytedata, 0, bytedata.Length);
             await stream.FlushAsync();
