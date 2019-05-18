@@ -182,6 +182,10 @@
       <Project>{1b6f2bda-033b-49ee-8cdc-63b613d09d51}</Project>
       <Name>Octovisor.Client</Name>
     </ProjectReference>
+    <ProjectReference Include="..\Octovisor.Messages\Octovisor.Messages.csproj">
+      <Project>{465e4a56-039f-4539-b320-68ad4f3ece1f}</Project>
+      <Name>Octovisor.Messages</Name>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <None Include="Resources\syntax_highlight.xshd">

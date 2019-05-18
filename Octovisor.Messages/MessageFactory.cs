@@ -4,8 +4,9 @@ namespace Octovisor.Messages
 {
     public class MessageFactory
     {
-        private int CurrentMessageID;
-        private int CompressionTreshold;
+        private volatile int CurrentMessageID;
+
+        private readonly int CompressionTreshold;
 
         public MessageFactory(int compressionTreshold = 300)
         {
@@ -102,7 +103,7 @@ namespace Octovisor.Messages
                 Status = status,
             };
 
-            Interlocked.Increment(ref this.CurrentMessageID);
+            this.CurrentMessageID++;
             this.SetMessageErrorString(msg);
             if (msg.DataLength >= this.CompressionTreshold) msg.CompressData();
 
@@ -122,7 +123,7 @@ namespace Octovisor.Messages
                 Status = MessageStatus.Unknown,
             };
 
-            Interlocked.Increment(ref this.CurrentMessageID);
+            this.CurrentMessageID++;
             if (msg.DataLength >= this.CompressionTreshold) msg.CompressData();
 
             return msg;

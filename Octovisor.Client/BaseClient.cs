@@ -15,9 +15,9 @@ namespace Octovisor.Client
     /// </summary>
     public abstract class BaseClient
     {
-        private TcpClient Client;
-        private Task ReceivingTask;
-        private NetworkStream Stream;
+        private volatile TcpClient Client;
+        private volatile Task ReceivingTask;
+        private volatile NetworkStream Stream;
 
         private readonly byte[] Buffer;
         private readonly OctoConfig Config;
@@ -74,7 +74,7 @@ namespace Octovisor.Client
             this.IsConnectedInternal = false;
         }
 
-        private void LogEvent(LogSeverity severity, string log) 
+        protected void LogEvent(LogSeverity severity, string log) 
             => this.Log?.Invoke(new LogMessage(severity, log));
 
         /// <summary>

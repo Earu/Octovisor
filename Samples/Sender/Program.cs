@@ -42,13 +42,19 @@ namespace Octovisor.Tests.Client
         static async Task SpamRemoteProcessAsync(OctoClient client, string procName)
         {
             var last = DateTime.Now;
-            RemoteProcess proc = client.GetProcess(procName);
-            for (int i = 0; i < 10; i++)
+            if (client.TryGetProcess(procName, out RemoteProcess proc))
             {
-                string result = await proc.TransmitObjectAsync<TestClass, string>("meme", new TestClass());
-                Console.WriteLine($"{client.ProcessName}: {result}");
+                for (int i = 0; i < 10; i++)
+                {
+                    string result = await proc.TransmitObjectAsync<TestClass, string>("meme", new TestClass());
+                    Console.WriteLine($"{client.ProcessName}: {result}");
+                }
+                Console.WriteLine($"Took {(DateTime.Now - last).TotalMilliseconds}ms");
             }
-            Console.WriteLine($"Took {(DateTime.Now - last).TotalMilliseconds}ms");
+            else
+            {
+                Console.WriteLine($"Didnt find {procName}");
+            }
         }
 
         static async Task MainAsync()
