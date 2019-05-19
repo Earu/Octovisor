@@ -44,9 +44,9 @@ namespace Octovisor.Server.Utilities
                 this.Logger.Error(ex.ToString());
         }
 
-        internal async Task OnClientStateExceptionAsync(TCPSocketClientState state, Exception e)
+        internal async Task OnClientStateExceptionAsync(TCPSocketClientState state, Exception ex)
         {
-            await this.HandleExceptionAsync(e, async () =>
+            await this.HandleExceptionAsync(ex, async () =>
             {
                 this.Dispatcher.TerminateProcess(state.Name);
 
@@ -55,7 +55,11 @@ namespace Octovisor.Server.Utilities
             });
         }
 
-        internal async Task OnExceptionAsync(Exception e) // Happens when a process disconnects when connecting
-            => await this.HandleExceptionAsync(e, () => Task.CompletedTask);
+        internal async Task OnExceptionAsync(Exception ex) // Happens when a process disconnects when connecting
+            => await this.HandleExceptionAsync(ex, () =>
+            {
+                this.Logger.Danger(ex);
+                return Task.CompletedTask;
+            });
     }
 }

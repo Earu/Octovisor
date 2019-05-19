@@ -1,5 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using System.IO;
 using System.Text;
 
 namespace Octovisor.Messages
@@ -34,7 +34,7 @@ namespace Octovisor.Messages
                 this.Builder.Append(c);
 
                 current = this.Value;
-                if (current.Length >= 1 && current[current.Length - 1] == this.MessageFinalizer)
+                if (current.Length >= 1 && current[current.Length - 1].Equals(this.MessageFinalizer))
                 {
                     string smsg = current.Substring(0, current.Length - 1);
                     if (!string.IsNullOrWhiteSpace(smsg))
