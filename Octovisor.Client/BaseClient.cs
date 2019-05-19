@@ -125,18 +125,23 @@ namespace Octovisor.Client
         private void ClearBuffer()
             => Array.Clear(this.Buffer, 0, this.Config.BufferSize);
 
-        private void CompleteProcessUpdateTCS(ProcessUpdateData updateData, TaskCompletionSource<bool> tcs)
+        private async Task CompleteProcessUpdateTCSAsync(ProcessUpdateData updateData, TaskCompletionSource<bool> tcs)
         {
             if (updateData.Accepted && updateData.Name.Equals(this.Config.ProcessName))
-                tcs?.SetResult(updateData.Accepted);
+            {
+                if (tcs != null)
+                    tcs?.SetResult(updateData.Accepted);
+                else
+                    await this.DisconnectAsync();
+            }
         }
 
-        private void HandleUpdateProcessMessage(Message msg, bool isRegisterUpdate)
+        private async Task HandleUpdateProcessMessageAsync(Message msg, bool isRegisterUpdate)
         {
             if (msg.HasException) return; //timeout
 
             ProcessUpdateData updateData = msg.GetData<ProcessUpdateData>();
-            this.CompleteProcessUpdateTCS(updateData, isRegisterUpdate ? this.RegisterTCS : this.UnregisterTCS);
+            await this.CompleteProcessUpdateTCSAsync(updateData, isRegisterUpdate ? this.RegisterTCS : this.UnregisterTCS);
 
             if (updateData.Accepted && !updateData.Name.Equals(this.Config.ProcessName))
                 this.ProcessUpdate?.Invoke(updateData, isRegisterUpdate);
@@ -177,10 +182,10 @@ namespace Octovisor.Client
             switch (msg.Identifier)
             {
                 case MessageConstants.REGISTER_IDENTIFIER:
-                    this.HandleUpdateProcessMessage(msg, true);
+                    await this.HandleUpdateProcessMessageAsync(msg, true);
                     break;
                 case MessageConstants.TERMINATE_IDENTIFIER:
-                    this.HandleUpdateProcessMessage(msg, false);
+                    await this.HandleUpdateProcessMessageAsync(msg, false);
                     break;
                 case MessageConstants.REQUEST_PROCESSES_INFO_IDENTIFIER:
                     this.HandleRequestProcessesMessage(msg);
@@ -210,13 +215,13 @@ namespace Octovisor.Client
             {
                 while (this.IsConnected)
                 {
-                    int bytesRead = await stream.ReadAsync(this.Buffer, 0, this.Config.BufferSize);
-                    if (bytesRead <= 0) continue;
+                    await stream.ReadAsync(this.Buffer, 0, this.Config.BufferSize);
+                    if (this.Buffer.Length <= 0) continue;
 
                     string data = Encoding.UTF8.GetString(this.Buffer);
+                    this.ClearBuffer();
                     this.LogEvent(LogSeverity.Debug, $"Received {data.Length} bytes");
                     List<Message> messages = this.Reader.Read(data);
-                    this.ClearBuffer();
 
                     foreach (Message msg in messages)
                         await this.HandleReceivedMessageAsync(msg);

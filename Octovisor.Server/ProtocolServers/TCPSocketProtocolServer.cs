@@ -69,22 +69,19 @@ namespace Octovisor.Server.ProtocolServers
 
         private async Task ListenConnectionAsync()
         {
-            TcpClient client = null;
             try
             {
-                client = await this.Listener.AcceptTcpClientAsync();
+                TcpClient client = await this.Listener.AcceptTcpClientAsync();
+                TCPSocketClientState state = new TCPSocketClientState(client);
+
+#pragma warning disable CS4014
+                this.ListenAsync(state);
+#pragma warning restore CS4014
             }
             catch (Exception e)
             {
                 await this.ExceptionHandler.OnExceptionAsync(e);
             }
-
-            if (client == null) return;
-            TCPSocketClientState state = new TCPSocketClientState(client);
-
-#pragma warning disable CS4014
-            this.ListenAsync(state);
-#pragma warning restore CS4014
         }
 
         private async Task ListenAsync(TCPSocketClientState state)
@@ -92,13 +89,13 @@ namespace Octovisor.Server.ProtocolServers
             try
             {
                 Stream stream = state.Stream;
-                int bytesRead = await stream.ReadAsync(state.Buffer);
-                if (bytesRead <= 0) return;
+                await stream.ReadAsync(state.Buffer);
+                if (state.Buffer.Length <= 0) return;
 
-                string data = Encoding.UTF8.GetString(state.Buffer, 0, bytesRead);
+                string data = Encoding.UTF8.GetString(state.Buffer, 0, TCPSocketClientState.BufferSize);
+                state.ClearBuffer();
                 this.Logger.Nice("TCP", ConsoleColor.Gray, $"Received {data.Length} bytes");
                 List<Message> msgs = state.Reader.Read(data);
-                state.ClearBuffer();
 
                 await this.Dispatcher.HandleMessagesAsync(state, msgs);
 
