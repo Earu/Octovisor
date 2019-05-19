@@ -18,6 +18,7 @@ namespace Octovisor.Client
         private volatile TcpClient Client;
         private volatile Task ReceivingTask;
         private volatile NetworkStream Stream;
+        private volatile bool IsConnected;
 
         private readonly byte[] Buffer;
         private readonly OctoConfig Config;
@@ -51,7 +52,7 @@ namespace Octovisor.Client
         internal event Func<Message, string> MessageRequestReceived;
         internal event Action<Message> MessageResponseReceived;
        
-        internal bool IsConnectedInternal { get; private set; }
+        internal bool IsConnectedInternal { get => this.IsConnected; }
 
         internal bool IsRegistered { get; private set; }
 
@@ -71,7 +72,7 @@ namespace Octovisor.Client
             this.Buffer = new byte[config.BufferSize];
             this.MessageFactory = new MessageFactory(config.CompressionThreshold);
             this.IsRegistered = false;
-            this.IsConnectedInternal = false;
+            this.IsConnected = false;
         }
 
         protected void LogEvent(LogSeverity severity, string log) 
@@ -82,12 +83,12 @@ namespace Octovisor.Client
         /// </summary>
         public async Task ConnectAsync()
         {
-            if (this.IsConnectedInternal)
+            if (this.IsConnected)
                 throw new AlreadyConnectedException();
 
             this.Client = new TcpClient();
             await this.Client.ConnectAsync(this.Config.Address, this.Config.Port);
-            this.IsConnectedInternal = true;
+            this.IsConnected = true;
             this.Stream = this.Client.GetStream();
             if (this.Connected != null)
                 await this.Connected.Invoke();
@@ -103,13 +104,13 @@ namespace Octovisor.Client
         /// </summary>
         public async Task DisconnectAsync()
         {
-            if (!this.IsConnectedInternal)
+            if (!this.IsConnected)
                 throw new UnconnectedException();
 
             if (this.Client.Connected) // socket connected
                 await this.UnregisterAsync();
 
-            this.IsConnectedInternal = false;
+            this.IsConnected = false;
             await this.ReceivingTask;
 
             this.Stream.Dispose();
@@ -122,7 +123,7 @@ namespace Octovisor.Client
         }
 
         private void ClearBuffer()
-            => Array.Clear(this.Buffer, 0, this.Buffer.Length);
+            => Array.Clear(this.Buffer, 0, this.Config.BufferSize);
 
         private void CompleteProcessUpdateTCS(ProcessUpdateData updateData, TaskCompletionSource<bool> tcs)
         {
@@ -207,10 +208,10 @@ namespace Octovisor.Client
             NetworkStream stream = this.Stream;
             try
             {
-                while (this.IsConnectedInternal)
+                while (this.IsConnected)
                 {
-                    int bytesread = await stream.ReadAsync(this.Buffer, 0, this.Config.BufferSize);
-                    if (bytesread <= 0) continue;
+                    int bytesRead = await stream.ReadAsync(this.Buffer, 0, this.Config.BufferSize);
+                    if (bytesRead <= 0) continue;
 
                     string data = Encoding.UTF8.GetString(this.Buffer);
                     this.LogEvent(LogSeverity.Debug, $"Received {data.Length} bytes");
@@ -227,7 +228,7 @@ namespace Octovisor.Client
             }
             catch(Exception ex)
             {
-                this.LogEvent(LogSeverity.Error, ex.ToString());
+                this.LogEvent(LogSeverity.Error, $"Please report the following exception to https://github.com/Earu/Octovisor/issues\n {ex.ToString()}");
             }
         }
 
