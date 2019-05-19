@@ -96,6 +96,7 @@ namespace Octovisor.Server.ProtocolServers
                 if (bytesRead <= 0) return;
 
                 string data = Encoding.UTF8.GetString(state.Buffer, 0, bytesRead);
+                this.Logger.Nice("TCP", ConsoleColor.Gray, $"Received {data.Length} bytes");
                 List<Message> msgs = state.Reader.Read(data);
                 state.ClearBuffer();
 

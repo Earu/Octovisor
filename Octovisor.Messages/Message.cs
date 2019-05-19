@@ -67,6 +67,8 @@ namespace Octovisor.Messages
 
         public void CompressData()
         {
+            if (this.IsCompressed) return;
+
             byte[] dataBytes = Encoding.UTF8.GetBytes(this.Data);
             using (MemoryStream memory = new MemoryStream())
             {
@@ -82,6 +84,8 @@ namespace Octovisor.Messages
 
         public void DecompressData()
         {
+            if (!this.IsCompressed) return;
+
             using (GZipStream gzip = new GZipStream(new MemoryStream(this.CompressedData), CompressionMode.Decompress))
             using (MemoryStream memory = new MemoryStream())
             {

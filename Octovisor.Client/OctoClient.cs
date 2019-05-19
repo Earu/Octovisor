@@ -93,6 +93,7 @@ namespace Octovisor.Client
 
         private void OnMessageResponseReceived(Message msg)
         {
+            this.LogEvent(LogSeverity.Debug, $"Received response message | ID: {msg.Identifier}");
             if (!this.TransmissionTCSs.ContainsKey(msg.ID)) return;
 
             TaskCompletionSource<string> tcs = this.TransmissionTCSs[msg.ID];
@@ -107,6 +108,7 @@ namespace Octovisor.Client
 
         private string OnMessageRequestReceived(Message msg)
         {
+            this.LogEvent(LogSeverity.Debug, $"Received request message | ID: {msg.Identifier}");
             if (msg.HasException) return null;
 
             if (this.TransmissionHandlers.ContainsKey(msg.Identifier))
