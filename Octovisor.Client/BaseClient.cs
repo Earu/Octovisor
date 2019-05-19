@@ -213,6 +213,7 @@ namespace Octovisor.Client
                     if (bytesread <= 0) continue;
 
                     string data = Encoding.UTF8.GetString(this.Buffer);
+                    this.LogEvent(LogSeverity.Debug, $"Received {data.Length} bytes");
                     List<Message> messages = this.Reader.Read(data);
                     this.ClearBuffer();
 
@@ -224,9 +225,13 @@ namespace Octovisor.Client
             {
                 await this.DisconnectAsync();
             }
+            catch(Exception ex)
+            {
+                this.LogEvent(LogSeverity.Error, ex.ToString());
+            }
         }
 
-        private async Task<T> WaitInternalResponseAsync<T>(TaskCompletionSource<T> tcs)
+        private Task<T> WaitInternalResponseAsync<T>(TaskCompletionSource<T> tcs)
         {
             CancellationTokenSource cts = new CancellationTokenSource(this.Config.Timeout);
             cts.Token.Register(() =>
@@ -235,7 +240,7 @@ namespace Octovisor.Client
                     tcs.SetException(new TimeOutException());
             });
 
-            return await tcs.Task;
+            return tcs.Task;
         }
 
         private async Task RegisterAsync()
