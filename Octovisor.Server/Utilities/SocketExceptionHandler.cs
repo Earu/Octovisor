@@ -41,13 +41,14 @@ namespace Octovisor.Server.Utilities
             if (this.ShouldHandleException(ex))
                 await onConnectionReset();
             else
-                this.Logger.Error(ex.ToString());
+                this.Logger.Danger(ex);
         }
 
         internal async Task OnClientStateExceptionAsync(TCPSocketClientState state, Exception ex)
         {
             await this.HandleExceptionAsync(ex, async () =>
             {
+                this.Logger.Danger(ex);
                 this.Dispatcher.TerminateProcess(state.Name);
 
                 ProcessUpdateData enddata = new ProcessUpdateData(true, state.Name);

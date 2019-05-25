@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
@@ -63,7 +64,7 @@ namespace Octovisor.Server.ProtocolServers
             }
             catch (Exception e)
             {
-                this.Logger.Nice("TCP Socket Server", ConsoleColor.Magenta, "Critical state, shutting down TCP coms");
+                this.Logger.Nice("TCP Socket Server", ConsoleColor.Red, "Critical state, shutting down TCP coms");
                 this.Dispatcher.TerminateProcesses<TCPSocketClientState>();
                 this.Logger.LogTo("tcp_socket_crashes.txt", e.ToString());
             }
@@ -90,26 +91,38 @@ namespace Octovisor.Server.ProtocolServers
         {
             try
             {
-                Stream stream = state.Stream;
-                await stream.ReadAsync(state.Buffer);
-                if (state.Buffer.Length <= 0) return;
+                do
+                {
+                    Stream stream = state.Stream;
+                    int bytesRead = await stream.ReadAsync(state.Buffer);
+                    if (bytesRead <= 0)
+                    {
+                        TcpState tcpState = state.GetTcpState();
+                        if (tcpState != TcpState.Established)
+                        {
+                            this.Dispatcher.TerminateProcess(state.Name);
+                            ProcessUpdateData updateData = new ProcessUpdateData(true, state.Name);
+                            await this.Dispatcher.BroadcastMessageAsync(MessageConstants.TERMINATE_IDENTIFIER, updateData.Serialize());
 
-                string data = Encoding.UTF8.GetString(state.Buffer, 0, TCPSocketClientState.BufferSize);
-                state.ClearBuffer();
-                this.Logger.Nice("TCP", ConsoleColor.Gray, $"Received {data.Length} bytes");
-                List<Message> msgs = state.Reader.Read(data);
+                            return;
+                        }
 
-                await this.Dispatcher.HandleMessagesAsync(state, msgs);
+                        state.ClearBuffer();
+                        await Task.Delay(10);
+                        continue;
+                    }
 
-                // Maximum register payload size is 395 bytes, the client is sending garbage.
-                if (!state.IsRegistered && state.Reader.Size >= 600)
-                    state.Reader.Clear();
+                    string data = Encoding.UTF8.GetString(state.Buffer, 0, bytesRead);
+                    state.ClearBuffer();
+                    List<Message> msgs = state.Reader.Read(data);
 
-                // Wait again for incoming data
-                if (!state.IsDisposed && state.IsRegistered)
-#pragma warning disable CS4014
-                    this.ListenAsync(state);
-#pragma warning restore CS4014
+                    await this.Dispatcher.HandleMessagesAsync(state, msgs);
+
+                    // Maximum register payload size is 395 bytes, the client is sending garbage.
+                    if (!state.IsRegistered && state.Reader.Size >= 600)
+                        state.Reader.Clear();
+                }
+                while (!state.IsDisposed && state.IsRegistered);
             }
             catch (Exception e)
             {

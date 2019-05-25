@@ -24,16 +24,13 @@ namespace Octovisor.Client
 
         private void ValidateClientState()
         {
-            if (!this.Client.IsConnectedInternal)
-                throw new UnconnectedException();
-
-            if (!this.Client.IsRegistered)
-                throw new UnregisteredException();
+            if (!this.Client.IsConnectedInternal || !this.Client.IsRegisteredInternal)
+                throw new NotConnectedException();
         }
 
         private void ValidateIdentifier(string identifier)
         {
-            if (identifier.StartsWith("INTERNAL_OCTOVISOR"))
+            if (identifier.StartsWith("INTERNAL_OCTOVISOR", StringComparison.InvariantCulture))
                 throw new ReservedIdentifierException(identifier);
         }
 
