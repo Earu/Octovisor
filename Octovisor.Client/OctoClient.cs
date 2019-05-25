@@ -64,7 +64,7 @@ namespace Octovisor.Client
         /// <summary>
         /// Gets whether or not this client instance is connected to the Octovisor server
         /// </summary>
-        public bool IsConnected { get => this.IsConnectedInternal; }
+        public bool IsConnected { get => this.IsRegisteredInternal; }
 
         /// <summary>
         /// Gets the list of all currently available processes
@@ -128,17 +128,24 @@ namespace Octovisor.Client
 
         private void OnProcessUpdate(ProcessUpdateData updateData, bool isRegisterUpdate)
         {
+            bool procExists = this.Processes.ContainsKey(updateData.Name);
             if (isRegisterUpdate)
             {
-                RemoteProcess proc = new RemoteProcess(this, updateData.Name);
-                this.Processes.Add(updateData.Name, proc);
-                this.ProcessRegistered?.Invoke(proc);
+                if (!procExists)
+                {
+                    RemoteProcess proc = new RemoteProcess(this, updateData.Name);
+                    this.Processes.Add(updateData.Name, proc);
+                    this.ProcessRegistered?.Invoke(proc);
+                }
             }
             else
             {
-                RemoteProcess proc = this.Processes[updateData.Name];
-                this.Processes.Remove(updateData.Name);
-                this.ProcessEnded?.Invoke(proc);
+                if (procExists)
+                {
+                    RemoteProcess proc = this.Processes[updateData.Name];
+                    this.Processes.Remove(updateData.Name);
+                    this.ProcessEnded?.Invoke(proc);
+                }
             }
         }
 

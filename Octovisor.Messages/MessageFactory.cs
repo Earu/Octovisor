@@ -1,4 +1,5 @@
-﻿using System.Threading;
+﻿using System;
+using System.Threading;
 
 namespace Octovisor.Messages
 {
@@ -92,9 +93,10 @@ namespace Octovisor.Messages
 
         public Message CreateMessage(string identifier, string originName, string targetName, string payload, MessageType type, MessageStatus status)
         {
+            bool isInternal = identifier.StartsWith("INTERNAL_OCTOVISOR", StringComparison.InvariantCulture);
             Message msg = new Message
             {
-                ID = this.CurrentMessageID,
+                ID = isInternal ? -1 : this.CurrentMessageID,
                 OriginName = originName,
                 TargetName = targetName,
                 Identifier = identifier,
@@ -103,7 +105,9 @@ namespace Octovisor.Messages
                 Status = status,
             };
 
-            this.CurrentMessageID++;
+            if (!isInternal)
+                this.CurrentMessageID++;
+
             this.SetMessageErrorString(msg);
             if (msg.DataLength >= this.CompressionTreshold) msg.CompressData();
 

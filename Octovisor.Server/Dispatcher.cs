@@ -76,17 +76,20 @@ namespace Octovisor.Server
             }
             else
             {
+                bool shouldLog = true;
                 if (this.States.ContainsKey(name))
                 {
+                    shouldLog = false;
                     this.Logger.Nice("Process", ConsoleColor.Yellow, $"Overriding a remote process ({name})");
-                    this.TerminateProcess(name);
+                    this.TerminateProcess(name, shouldLog);
                 }
 
                 state.Name = name;
                 if (this.States.TryAdd(name, state))
                 {
                     state.Register();
-                    this.Logger.Nice("Process", ConsoleColor.Magenta, $"Registering new remote process | {name}");
+                    if (shouldLog)
+                        this.Logger.Nice("Process", ConsoleColor.Magenta, $"Registering new remote process | {name}");
                     data = new ProcessUpdateData(true, name);
                 }
                 else
@@ -129,21 +132,22 @@ namespace Octovisor.Server
         }
 
         // When client closes brutally
-        internal void TerminateProcess(string name)
+        internal void TerminateProcess(string name, bool shouldLog = true)
         {
             if (this.States.ContainsKey(name))
             {
                 this.States.Remove(name, out BaseClientState state);
                 state.Dispose();
 
-                this.Logger.Nice("Process", ConsoleColor.Magenta, $"Terminating remote process | {state.Name}");
+                if (shouldLog)
+                    this.Logger.Nice("Process", ConsoleColor.Magenta, $"Terminating remote process | {state.Name}");
             }
         }
 
         internal void TerminateProcesses<T>() where T : BaseClientState
         {
             foreach (KeyValuePair<string, BaseClientState> state in this.States)
-                if (state is T tState)
+                if (state.Value is T tState)
                     this.TerminateProcess(tState.Name);
         }
 
@@ -153,8 +157,10 @@ namespace Octovisor.Server
             {
                 await state.SendAsync(msg);
             }
-            catch
+            catch(Exception ex)
             {
+                this.Logger.Danger(ex);
+
                 this.TerminateProcess(state.Name);
 
                 ProcessUpdateData endData = new ProcessUpdateData(true, state.Name);
@@ -198,6 +204,7 @@ namespace Octovisor.Server
             {
                 Message broadcastMsg = this.Factory.CreateMessage(identifier, MessageConstants.SERVER_PROCESS_NAME, state.Value.Name,
                     data, MessageType.Response, MessageStatus.Success);
+
                 await this.SendAsync(state.Value, broadcastMsg);
             }
         }
