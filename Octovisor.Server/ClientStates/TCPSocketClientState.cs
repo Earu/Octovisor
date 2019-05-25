@@ -26,7 +26,7 @@ namespace Octovisor.Server.ClientStates
         }
 
         public void ClearBuffer()
-            => Array.Clear(this.Buffer, 0, this.Buffer.Length);
+            => this.Buffer = new byte[BufferSize];
 
         internal override async Task SendAsync(Message msg)
         {

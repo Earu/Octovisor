@@ -71,7 +71,7 @@ namespace Octovisor.Server
             }
             else if (this.States.Count >= Config.Instance.MaxProcesses)
             {
-                this.Logger.Warning($"Could not register a remote process ({name}). Exceeding the maximum amount of remote processes.");
+                this.Logger.Warning($"Could not register a remote process ({name}), exceeding the maximum amount of remote processes");
                 data = new ProcessUpdateData(false, name);
             }
             else
@@ -83,10 +83,17 @@ namespace Octovisor.Server
                 }
 
                 state.Name = name;
-                this.States.AddOrUpdate(name, state, (_, __) => state);
-                state.Register();
-                this.Logger.Nice("Process", ConsoleColor.Magenta, $"Registering new remote process | {name}");
-                data = new ProcessUpdateData(true, name);
+                if (this.States.TryAdd(name, state))
+                {
+                    state.Register();
+                    this.Logger.Nice("Process", ConsoleColor.Magenta, $"Registering new remote process | {name}");
+                    data = new ProcessUpdateData(true, name);
+                }
+                else
+                {
+                    this.Logger.Warning($"Could not register a remote process ({name}), this is due to concurrency issues");
+                    data = new ProcessUpdateData(false, name);
+                }
             }
 
             await this.BroadcastMessageAsync(MessageConstants.REGISTER_IDENTIFIER, data.Serialize());
@@ -114,9 +121,8 @@ namespace Octovisor.Server
                 data = new ProcessUpdateData(true, name);
                 await this.BroadcastMessageAsync(MessageConstants.TERMINATE_IDENTIFIER, data.Serialize());
 
-                BaseClientState state = this.States[name];
+                this.States.Remove(name, out BaseClientState state);
                 state.Dispose();
-                this.States.Remove(name, out BaseClientState _);
 
                 this.Logger.Nice("Process", ConsoleColor.Magenta, $"Terminating remote process | {name}");
             }
@@ -127,12 +133,18 @@ namespace Octovisor.Server
         {
             if (this.States.ContainsKey(name))
             {
-                BaseClientState state = this.States[name];
+                this.States.Remove(name, out BaseClientState state);
                 state.Dispose();
-                this.States.Remove(name, out BaseClientState _);
 
                 this.Logger.Nice("Process", ConsoleColor.Magenta, $"Terminating remote process | {state.Name}");
             }
+        }
+
+        internal void TerminateProcesses<T>() where T : BaseClientState
+        {
+            foreach (KeyValuePair<string, BaseClientState> state in this.States)
+                if (state is T tState)
+                    this.TerminateProcess(tState.Name);
         }
 
         private async Task SendAsync(BaseClientState state, Message msg)

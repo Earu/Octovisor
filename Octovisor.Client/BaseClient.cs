@@ -19,13 +19,13 @@ namespace Octovisor.Client
         private volatile Task ReceivingTask;
         private volatile NetworkStream Stream;
         private volatile bool IsConnected;
-
-        private readonly byte[] Buffer;
-        private readonly OctoConfig Config;
-        private readonly MessageReader Reader;
+        private volatile byte[] Buffer;
         private volatile TaskCompletionSource<bool> RegisterTCS;
         private volatile TaskCompletionSource<bool> UnregisterTCS;
         private volatile TaskCompletionSource<List<RemoteProcessData>> RequestProcessesInfoTCS;
+
+        private readonly OctoConfig Config;
+        private readonly MessageReader Reader;
 
         /// <summary>
         /// Fired when something is logged
@@ -123,7 +123,7 @@ namespace Octovisor.Client
         }
 
         private void ClearBuffer()
-            => Array.Clear(this.Buffer, 0, this.Config.BufferSize);
+            => this.Buffer = new byte[this.Config.BufferSize];
 
         private async Task CompleteProcessUpdateTCSAsync(ProcessUpdateData updateData, TaskCompletionSource<bool> tcs)
         {

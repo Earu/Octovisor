@@ -17,7 +17,7 @@ namespace Octovisor.Client
             this.Port = -1;
             this.Address = string.Empty;
             this.MessageFinalizer = '\0';
-            this.BufferSize = 255;
+            this.BufferSize = 256;
             this.Timeout = 5000;
             this.CompressionThreshold = 300;
         }
