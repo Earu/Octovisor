@@ -63,6 +63,8 @@ namespace Octovisor.Server.ProtocolServers
             }
             catch (Exception e)
             {
+                this.Logger.Nice("TCP Socket Server", ConsoleColor.Magenta, "Critical state, shutting down TCP coms");
+                this.Dispatcher.TerminateProcesses<TCPSocketClientState>();
                 this.Logger.LogTo("tcp_socket_crashes.txt", e.ToString());
             }
         }
@@ -100,7 +102,7 @@ namespace Octovisor.Server.ProtocolServers
                 await this.Dispatcher.HandleMessagesAsync(state, msgs);
 
                 // Maximum register payload size is 395 bytes, the client is sending garbage.
-                if (!state.IsRegistered && state.Reader.Size >= 500)
+                if (!state.IsRegistered && state.Reader.Size >= 600)
                     state.Reader.Clear();
 
                 // Wait again for incoming data
