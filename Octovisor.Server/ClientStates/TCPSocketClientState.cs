@@ -1,6 +1,8 @@
 ﻿using Octovisor.Messages;
 using System;
+using System.Linq;
 using System.Net;
+using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
@@ -25,8 +27,17 @@ namespace Octovisor.Server.ClientStates
             this.Stream = this.Client.GetStream();
         }
 
-        public void ClearBuffer()
-            => this.Buffer = new byte[BufferSize];
+        internal void ClearBuffer()
+            => Array.Clear(this.Buffer, 0, BufferSize);
+
+        internal TcpState GetTcpState()
+        {
+            TcpConnectionInformation conInfo = IPGlobalProperties.GetIPGlobalProperties()
+                .GetActiveTcpConnections()
+                .SingleOrDefault(con => con.LocalEndPoint.Equals(this.Client.Client.LocalEndPoint));
+
+            return conInfo != null ? conInfo.State : TcpState.Unknown;
+        }
 
         internal override async Task SendAsync(Message msg)
         {

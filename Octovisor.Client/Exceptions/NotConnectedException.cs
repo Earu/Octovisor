@@ -2,9 +2,9 @@
 
 namespace Octovisor.Client.Exceptions
 {
-    public class UnconnectedException : Exception
+    public class NotConnectedException : Exception
     {
-        public UnconnectedException()
+        public NotConnectedException()
         {
             this.Message = "Not connected to server";
         }
