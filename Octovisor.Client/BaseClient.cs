@@ -138,6 +138,7 @@ namespace Octovisor.Client
             this.IsConnected = false;
             await this.ReceivingTask;
 
+            this.ClearBuffer();
             this.Stream.Dispose();
             this.Client.Dispose();
             this.Reader.Clear();
