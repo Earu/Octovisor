@@ -14,14 +14,16 @@ namespace Octovisor.Server.ClientStates
         internal const int BufferSize = 256;
 
         internal TcpClient Client { get; set; }
-        internal byte[] Buffer { get; private set; }
+        internal byte[] Buffer { get; }
         internal MessageReader Reader { get; }
-        internal EndPoint RemoteEndPoint { get => this.Client.Client.RemoteEndPoint; }
-        internal NetworkStream Stream { get; private set; }
+        internal EndPoint RemoteEndPoint => this.Client.Client.RemoteEndPoint;
+        internal NetworkStream Stream { get; }
 
-        internal TCPSocketClientState(TcpClient client) : base()
+        internal TCPSocketClientState(TcpClient client) 
         {
             this.Client = client;
+            this.Client.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
+
             this.Buffer = new byte[BufferSize];
             this.Reader = new MessageReader(Config.MessageFinalizer);
             this.Stream = this.Client.GetStream();
@@ -36,7 +38,7 @@ namespace Octovisor.Server.ClientStates
                 .GetActiveTcpConnections()
                 .SingleOrDefault(con => con.LocalEndPoint.Equals(this.Client.Client.LocalEndPoint));
 
-            return conInfo != null ? conInfo.State : TcpState.Unknown;
+            return conInfo?.State ?? TcpState.Unknown;
         }
 
         internal override async Task SendAsync(Message msg)

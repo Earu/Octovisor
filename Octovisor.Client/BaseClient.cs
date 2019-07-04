@@ -54,11 +54,11 @@ namespace Octovisor.Client
         internal event Func<Message, string> MessageRequestReceived;
         internal event Action<Message> MessageResponseReceived;
        
-        internal bool IsConnectedInternal { get => this.IsConnected; }
+        internal bool IsConnectedInternal => this.IsConnected; 
 
         internal bool IsRegisteredInternal { get; private set; }
 
-        internal MessageFactory MessageFactory { get; private set; }
+        internal MessageFactory MessageFactory { get; }
 
         /// <summary>
         /// Creates a new instance of OctovisorClient
@@ -89,6 +89,7 @@ namespace Octovisor.Client
                 throw new AlreadyConnectedException();
 
             this.Client = new TcpClient();
+            this.Client.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
             await this.Client.ConnectAsync(this.Config.Address, this.Config.Port);
             this.IsConnected = true;
 
@@ -109,7 +110,7 @@ namespace Octovisor.Client
             else
             {
                 this.LogEvent(LogSeverity.Info, "Server refused our credentials, disconnecting");
-                await this.DisposeAsync();
+                await this.DisposeAsync(true);
             }
         }
 
@@ -121,22 +122,32 @@ namespace Octovisor.Client
             if (!this.IsConnected || !this.IsRegisteredInternal)
                 throw new NotConnectedException();
 
-            if (this.GetTcpState() == TcpState.Established) // lets be nice if we can be
-                await this.UnregisterAsync();
-            else
-                this.IsRegisteredInternal = false;
+            try
+            {
+                if (this.GetTcpState() == TcpState.Established) // lets be nice if we can be
+                    await this.UnregisterAsync();
+                else
+                    this.IsRegisteredInternal = false;
 
-            await this.DisposeAsync();
-            this.LogEvent(LogSeverity.Info, "Disconnected");
+                this.LogEvent(LogSeverity.Info, "Disconnected");
+                await this.DisposeAsync(true);
+            }
+            catch (Exception ex)
+            {
+                this.IsRegisteredInternal = false;
+                this.LogEvent(LogSeverity.Info, $"Force-disconnected: {ex.Message}");
+                await this.DisposeAsync(false);
+            }
 
             if (this.Disconnected != null)
                 await this.Disconnected.Invoke();
         }
 
-        private async Task DisposeAsync()
+        private async Task DisposeAsync(bool waitTask)
         {
             this.IsConnected = false;
-            await this.ReceivingTask;
+            if (waitTask)
+                await this.ReceivingTask;
 
             this.ClearBuffer();
             this.Stream.Dispose();
@@ -223,7 +234,6 @@ namespace Octovisor.Client
                             this.HandleResponseMessage(msg);
                             break;
                         case MessageType.Unknown:
-                        default:
                             this.LogEvent(LogSeverity.Warn, $"Received unknown message type\n{msg.Data}");
                             break;
                     }
@@ -237,7 +247,7 @@ namespace Octovisor.Client
                 .GetActiveTcpConnections()
                 .SingleOrDefault(con => con.LocalEndPoint.Equals(this.Client.Client.LocalEndPoint));
 
-            return conInfo != null ? conInfo.State : TcpState.Unknown;
+            return conInfo?.State ?? TcpState.Unknown;
         }
 
         private async Task ListenAsync()
@@ -277,7 +287,7 @@ namespace Octovisor.Client
             }
             catch(Exception ex)
             {
-                this.LogEvent(LogSeverity.Error, $"Please report the following exception to https://github.com/Earu/Octovisor/issues\n {ex.ToString()}");
+                this.LogEvent(LogSeverity.Error, $"Please report the following exception to https://github.com/Earu/Octovisor/issues\n {ex}");
             }
         }
 
