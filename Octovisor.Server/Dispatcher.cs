@@ -25,11 +25,10 @@ namespace Octovisor.Server
         internal string GetProcessesData(string origin)
         {
             List<RemoteProcessData> res = new List<RemoteProcessData>();
-            foreach (KeyValuePair<string, BaseClientState> state in this.States)
+            foreach ((string stateName, BaseClientState _) in this.States)
             {
-                string name = state.Key;
-                if (!name.Equals(origin))
-                    res.Add(new RemoteProcessData(state.Key));
+                if (!stateName.Equals(origin))
+                    res.Add(new RemoteProcessData(stateName));
             }
 
             return MessageSerializer.SerializeData(res);
@@ -81,7 +80,7 @@ namespace Octovisor.Server
                 {
                     shouldLog = false;
                     this.Logger.Nice("Process", ConsoleColor.Yellow, $"Overriding a remote process ({name})");
-                    this.TerminateProcess(name, shouldLog);
+                    this.TerminateProcess(name, false);
                 }
 
                 state.Name = name;
@@ -134,21 +133,22 @@ namespace Octovisor.Server
         // When client closes brutally
         internal void TerminateProcess(string name, bool shouldLog = true)
         {
-            if (this.States.ContainsKey(name))
-            {
-                this.States.Remove(name, out BaseClientState state);
-                state.Dispose();
+            if (!this.States.ContainsKey(name)) return;
 
-                if (shouldLog)
-                    this.Logger.Nice("Process", ConsoleColor.Magenta, $"Terminating remote process | {state.Name}");
-            }
+            this.States.Remove(name, out BaseClientState state);
+            state.Dispose();
+
+            if (shouldLog)
+                this.Logger.Nice("Process", ConsoleColor.Magenta, $"Terminating remote process | {state.Name}");
         }
 
         internal void TerminateProcesses<T>() where T : BaseClientState
         {
             foreach (KeyValuePair<string, BaseClientState> state in this.States)
+            {
                 if (state.Value is T tState)
                     this.TerminateProcess(tState.Name);
+            }
         }
 
         private async Task SendAsync(BaseClientState state, Message msg)

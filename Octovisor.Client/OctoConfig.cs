@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using System.Linq;
 using YamlDotNet.Serialization;
 
 namespace Octovisor.Client
@@ -8,12 +9,12 @@ namespace Octovisor.Client
     /// </summary>
     public class OctoConfig
     {
-        private string _ProcessName;
+        private string InternalProcessName;
 
         public OctoConfig()
         {
             this.Token = string.Empty;
-            this._ProcessName = string.Empty;
+            this.InternalProcessName = string.Empty;
             this.Port = -1;
             this.Address = string.Empty;
             this.MessageFinalizer = '\0';
@@ -27,11 +28,8 @@ namespace Octovisor.Client
         /// </summary>
         public string ProcessName
         {
-            get => this._ProcessName;
-            set
-            {
-                this._ProcessName = value.Length > 255 ? value.Substring(0, 255) : value;
-            } 
+            get => this.InternalProcessName;
+            set => this.InternalProcessName = value.Length > 255 ? value.Substring(0, 255) : value;
         }
 
         /// <summary>
@@ -54,7 +52,7 @@ namespace Octovisor.Client
         /// This needs to be the same as the server, it is strongly advised to keep it set to "\0"
         /// </summary>
         [YamlIgnore]
-        public char MessageFinalizer { get; private set; }
+        public char MessageFinalizer { get; }
 
         /// <summary>
         /// The size of the buffer used to read from socket
@@ -76,15 +74,11 @@ namespace Octovisor.Client
         /// </summary>
         public bool IsValid()
         {
-            string[] props = new string[] { this.Token, this.ProcessName, this.Address };
-            foreach (string prop in props)
-                if (string.IsNullOrWhiteSpace(prop))
-                    return false;
-
-            if (this.Port < 1 || this.BufferSize < 1 || this.Timeout < 1 || this.CompressionThreshold < 1)
+            string[] props = { this.Token, this.ProcessName, this.Address };
+            if (props.Any(string.IsNullOrWhiteSpace))
                 return false;
 
-            return true;
+            return this.Port >= 1 && this.BufferSize >= 1 && this.Timeout >= 1 && this.CompressionThreshold >= 1;
         }
 
         /// <summary>
