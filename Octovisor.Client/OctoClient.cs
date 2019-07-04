@@ -64,32 +64,32 @@ namespace Octovisor.Client
         /// <summary>
         /// Gets whether or not this client instance is connected to the Octovisor server
         /// </summary>
-        public bool IsConnected { get => this.IsRegisteredInternal; }
+        public bool IsConnected => this.IsRegisteredInternal; 
 
         /// <summary>
         /// Gets the list of all currently available processes
         /// </summary>
-        public List<RemoteProcess> AvailableProcesses { get => this.Processes.Select(x => x.Value).ToList(); }
+        public List<RemoteProcess> AvailableProcesses => this.Processes.Select(x => x.Value).ToList(); 
 
         /// <summary>
         /// Gets the amount of available registered processes
         /// </summary>
-        public int AvailableProcessesCount { get => this.Processes.Count; }
+        public int AvailableProcessesCount  => this.Processes.Count; 
 
         /// <summary>
         /// The name under which the client is registered on the Server
         /// </summary>
-        public string ProcessName { get; private set; }
+        public string ProcessName { get; }
 
         /// <summary>
         /// The address of the Octovisor server this client is targetting
         /// </summary>
-        public string ServerAddress { get; private set; }
+        public string ServerAddress { get; }
 
         /// <summary>
         /// The port of the Octovisor server this client is targetting
         /// </summary>
-        public int ServerPort { get; private set; }
+        public int ServerPort { get; }
 
         private void OnMessageResponseReceived(Message msg)
         {
@@ -291,7 +291,7 @@ namespace Octovisor.Client
             string result = await tcs.Task;
             this.TransmissionTCSs.Remove(id);
 
-            return result == null ? default(T) : MessageSerializer.DeserializeData<T>(result);
+            return result == null ? default : MessageSerializer.DeserializeData<T>(result);
         }
 
         internal async Task<TResult> TransmitObjectAsync<T, TResult>(string identifier, string target, T obj) where T : class

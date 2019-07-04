@@ -54,6 +54,7 @@ namespace Octovisor.Server.ProtocolServers
                 // To accept IPv4 and IPv6
                 listener.Server.DualMode = true;
                 listener.Server.SetSocketOption(SocketOptionLevel.IPv6, SocketOptionName.IPv6Only, 0);
+                listener.Server.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
                 listener.Start(Config.Instance.MaxProcesses);
 
                 this.Listener = listener;
