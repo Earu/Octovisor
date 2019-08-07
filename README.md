@@ -1,4 +1,4 @@
-[![Build status](https://ci.appveyor.com/api/projects/status/7c041re9phx9iuuq?svg=true)](https://ci.appveyor.com/project/Earu/octovisor)
+[![pipeline status](https://gitlab.com/Earu/octovisor/badges/master/pipeline.svg)](https://gitlab.com/Earu/octovisor/commits/master)
 
 <img src="https://repository-images.githubusercontent.com/153482218/02279580-6b38-11e9-957e-6747a4d5deba" width="25%"/>
 
