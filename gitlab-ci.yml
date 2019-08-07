@@ -1,0 +1,14 @@
+image: microsoft/dotnet:latest
+
+stages:
+    - build
+    
+before_script:
+    - "dotnet restore Octovisor.Client"
+    - "dotnet restore Octovisor.Server"
+
+build:
+    stage: build
+    script:
+        - "dotnet build Octovisor.Client"
+        - "dotnet build Octovisor.Server"
